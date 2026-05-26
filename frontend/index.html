@@ -11,67 +11,136 @@
 </head>
 <body>
     <div id="app" class="app-container">
-        <!-- Sidebar: Navigation places and bookmarks -->
+        <!-- Sidebar Hover Trigger Zone -->
+        <div class="sidebar-trigger-zone"></div>
+
+        <!-- Sidebar: Navigation places, Bookmarks, and Mounts -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h2>Zen-Man</h2>
             </div>
-            <nav id="sidebar-places" class="sidebar-nav">
-                <!-- Dynamically populated -->
-            </nav>
+            
+            <div class="sidebar-section-title">Places</div>
+            <nav id="sidebar-places" class="sidebar-nav"></nav>
+            
+            <div class="sidebar-section-title">
+                <span>Bookmarks</span>
+                <button id="btn-add-bookmark" class="btn-sidebar-action" title="Add Current to Bookmarks">+</button>
+            </div>
+            <nav id="sidebar-bookmarks" class="sidebar-nav"></nav>
+            
+            <div class="sidebar-section-title">Mounted Drives</div>
+            <nav id="sidebar-mounts" class="sidebar-nav"></nav>
         </aside>
 
         <!-- Main Window Container -->
         <main class="main-window">
-            <!-- Toolbar: Back, Forward, Breadcrumbs, Search, View Mode -->
-            <header class="toolbar">
-                <div class="toolbar-nav-buttons">
-                    <button id="nav-back" title="Go Back" disabled>&larr;</button>
-                    <button id="nav-forward" title="Go Forward" disabled>&rarr;</button>
-                    <button id="nav-up" title="Go Up">&uarr;</button>
+            <!-- Global Workspace & Split control Header -->
+            <header class="global-header">
+                <div class="workspace-section">
+                    <span class="workspace-label">Workspace:</span>
+                    <select id="workspace-select" class="workspace-select" aria-label="Workspaces">
+                        <option value="default">Default</option>
+                    </select>
+                    <button id="workspace-new-btn" class="btn-global" title="Create New Workspace">New</button>
+                    <button id="workspace-delete" class="btn-global" title="Delete Workspace">Delete</button>
+
+                    <div id="workspace-create-panel" style="display: none; align-items: center; gap: 5px;">
+                        <input type="text" id="workspace-new-name" placeholder="Workspace name..." style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; outline: none; width: 140px;">
+                        <button id="workspace-confirm-save" class="btn-global btn-accent" style="padding: 4px 8px;" title="Confirm Save">✓</button>
+                        <button id="workspace-cancel-save" class="btn-global" style="padding: 4px 8px;" title="Cancel">✗</button>
+                    </div>
                 </div>
-                <div id="breadcrumb-container" class="breadcrumb-container">
-                    <input type="text" id="address-bar" class="address-bar" value="/" style="display: none;">
-                    <div id="breadcrumbs" class="breadcrumbs"></div>
-                </div>
-                <div class="toolbar-search">
-                    <input type="text" id="search-input" placeholder="Search..." aria-label="Search files">
-                </div>
-                <div class="toolbar-views">
-                    <button id="view-list" class="active" title="List View">&#9776;</button>
-                    <button id="view-grid" title="Grid View">&#9830;</button>
+                <div class="global-actions">
+                    <button id="split-toggle-btn" class="btn-global btn-accent" title="Toggle Split Dual View (F3)">Split View (F3)</button>
                 </div>
             </header>
 
-            <!-- Tabs container -->
-            <div id="tabs-bar" class="tabs-bar">
-                <!-- Dynamically populated tabs -->
+            <!-- Dual Pane Container -->
+            <div id="panes-container" class="panes-container single-pane">
+                
+                <!-- Left Pane -->
+                <div id="pane-left" class="pane active-pane" tabindex="0">
+                    <header class="toolbar">
+                        <div class="toolbar-nav-buttons">
+                            <button class="nav-back" title="Go Back" disabled>&larr;</button>
+                            <button class="nav-forward" title="Go Forward" disabled>&rarr;</button>
+                            <button class="nav-up" title="Go Up">&uarr;</button>
+                        </div>
+                        <div class="breadcrumb-container">
+                            <input type="text" class="address-bar" value="/" style="display: none;">
+                            <div class="breadcrumbs"></div>
+                        </div>
+                        <div class="toolbar-views">
+                            <button class="view-list active" title="List View">&#9776;</button>
+                            <button class="view-grid" title="Grid View">&#9830;</button>
+                        </div>
+                    </header>
+
+                    <div class="tabs-bar-container">
+                        <div class="tabs-bar"></div>
+                        <button class="btn-new-tab" title="New Tab">+</button>
+                    </div>
+
+                    <div class="file-view-container">
+                        <div class="file-list-header">
+                            <div class="col-name" data-sort="name">Name</div>
+                            <div class="col-size" data-sort="size">Size</div>
+                            <div class="col-date" data-sort="date">Modified</div>
+                        </div>
+                        <div class="file-list list-view" tabindex="0"></div>
+                    </div>
+
+                    <footer class="status-bar">
+                        <span class="status-selection">0 items selected</span>
+                        <span class="status-info">Loading...</span>
+                    </footer>
+                </div>
+
+                <!-- Right Pane -->
+                <div id="pane-right" class="pane" tabindex="0" style="display: none;">
+                    <header class="toolbar">
+                        <div class="toolbar-nav-buttons">
+                            <button class="nav-back" title="Go Back" disabled>&larr;</button>
+                            <button class="nav-forward" title="Go Forward" disabled>&rarr;</button>
+                            <button class="nav-up" title="Go Up">&uarr;</button>
+                        </div>
+                        <div class="breadcrumb-container">
+                            <input type="text" class="address-bar" value="/" style="display: none;">
+                            <div class="breadcrumbs"></div>
+                        </div>
+                        <div class="toolbar-views">
+                            <button class="view-list active" title="List View">&#9776;</button>
+                            <button class="view-grid" title="Grid View">&#9830;</button>
+                        </div>
+                    </header>
+
+                    <div class="tabs-bar-container">
+                        <div class="tabs-bar"></div>
+                        <button class="btn-new-tab" title="New Tab">+</button>
+                    </div>
+
+                    <div class="file-view-container">
+                        <div class="file-list-header">
+                            <div class="col-name" data-sort="name">Name</div>
+                            <div class="col-size" data-sort="size">Size</div>
+                            <div class="col-date" data-sort="date">Modified</div>
+                        </div>
+                        <div class="file-list list-view" tabindex="0"></div>
+                    </div>
+
+                    <footer class="status-bar">
+                        <span class="status-selection">0 items selected</span>
+                        <span class="status-info">Loading...</span>
+                    </footer>
+                </div>
+
             </div>
-
-            <!-- Directory listing area -->
-            <section class="file-view-container">
-                <div id="file-list-header" class="file-list-header">
-                    <div class="col-name" data-sort="name">Name</div>
-                    <div class="col-size" data-sort="size">Size</div>
-                    <div class="col-date" data-sort="date">Modified</div>
-                </div>
-                <div id="file-list" class="file-list list-view" tabindex="0">
-                    <!-- File items populated dynamically -->
-                </div>
-            </section>
-
-            <!-- Status Bar -->
-            <footer class="status-bar">
-                <span id="status-selection">0 items selected</span>
-                <span id="status-info">Loading...</span>
-            </footer>
         </main>
     </div>
 
     <!-- Context Menu -->
-    <div id="context-menu" class="context-menu" style="display: none;">
-        <!-- Right click options populated dynamically -->
-    </div>
+    <div id="context-menu" class="context-menu" style="display: none;"></div>
 
     <script src="js/app.js"></script>
 </body>

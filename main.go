@@ -55,10 +55,11 @@ func main() {
 	// Static files
 	mux.Handle("/", fileServer)
 
-	// API Handlers (wrapped or bound in api subpackage)
+		// API Handlers (wrapped or bound in api subpackage)
 	mux.HandleFunc("/api/dir", api.HandleReadDirectory)
 	mux.HandleFunc("/api/op", api.HandleFileOp)
-	mux.HandleFunc("/api/places", handlePlaces)
+	mux.HandleFunc("/api/places", api.HandlePlaces)
+	mux.HandleFunc("/api/workspaces", api.HandleWorkspaces)
 	mux.HandleFunc("/api/action", handleCustomAction)
 	mux.HandleFunc("/api/props", handleProperties)
 
@@ -83,10 +84,7 @@ func main() {
 }
 
 // Dummy handler implementations for initial compilation
-func handlePlaces(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"bookmarks": [], "drives": []}`))
-}
+
 
 func handleCustomAction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
