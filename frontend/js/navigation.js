@@ -2,9 +2,11 @@ import { state, getPaneDom, getActiveTab } from './state.js';
 import { renderFiles, updateSelectionUI } from './file-list.js';
 
 let renderTabsCallback = null;
+let _autoSaveCallback = null;
 
-export function initNavigation(renderTabs) {
+export function initNavigation(renderTabs, autoSaveCallback) {
     renderTabsCallback = renderTabs;
+    _autoSaveCallback = autoSaveCallback || null;
 }
 
 // Navigation helpers
@@ -48,6 +50,7 @@ export async function navigateTo(path, recordHistory = true, paneId = state.acti
         if (renderTabsCallback) {
             renderTabsCallback(paneId);
         }
+        if (_autoSaveCallback) _autoSaveCallback();
         
         const fileListEl = getPaneDom(paneId).querySelector('.file-list');
         fileListEl.scrollTop = 0;

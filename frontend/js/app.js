@@ -22,7 +22,8 @@ import {
 } from './navigation.js';
 import { 
     createTab, 
-    renderTabs 
+    renderTabs,
+    initTabs
 } from './tabs.js';
 import { 
     loadWorkspaces, 
@@ -30,7 +31,9 @@ import {
     hideWorkspaceCreatePanel, 
     triggerSaveWorkspace, 
     triggerDeleteWorkspace, 
-    handleWorkspaceChange 
+    handleWorkspaceChange,
+    scheduleAutoSave,
+    restoreDefaultWorkspace
 } from './workspace.js';
 import { handlePaneContextMenu } from './context-menu.js';
 import { handleKeyboardShortcuts } from './keyboard.js';
@@ -39,7 +42,8 @@ import { handleKeyboardShortcuts } from './keyboard.js';
 initSplitView(updateSelectionUI, createTab);
 initSidebar(navigateTo);
 initFileList(navigateTo);
-initNavigation(renderTabs);
+initNavigation(renderTabs, scheduleAutoSave);
+initTabs(scheduleAutoSave);
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
@@ -47,8 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSidebarPlaces();
     loadWorkspaces();
     
-    // Create initial tab for Left Pane
-    createTab('left', ''); 
+    // Restore previous default session (or create blank tab if none)
+    restoreDefaultWorkspace();
 });
 
 function setupEventListeners() {
@@ -74,10 +78,10 @@ function setupEventListeners() {
     document.getElementById('pane-left').addEventListener('contextmenu', (e) => handlePaneContextMenu(e, 'left'));
     document.getElementById('pane-right').addEventListener('contextmenu', (e) => handlePaneContextMenu(e, 'right'));
 
-    // Hide context menu on left click anywhere
+    // Hide context menu on click anywhere — use capture so file-list's stopPropagation doesn't block it
     document.addEventListener('click', () => {
         document.getElementById('context-menu').style.display = 'none';
-    });
+    }, { capture: true });
 
     // Global keyboard shortcuts
     document.addEventListener('keydown', handleKeyboardShortcuts);

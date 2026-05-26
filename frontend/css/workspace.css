@@ -1,0 +1,75 @@
+/* Global header styling */
+.global-header {
+    height: 48px;
+    background-color: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    flex-shrink: 0;
+}
+
+.workspace-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.workspace-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.workspace-select {
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    outline: none;
+    cursor: pointer;
+}
+
+.btn-global {
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.btn-global:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--accent-color);
+}
+
+.btn-accent {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--text-active);
+}
+
+.btn-accent:hover {
+    background-color: var(--accent-hover);
+}
+
+.workspace-save-indicator {
+    font-size: 0.75rem;
+    color: var(--accent-color);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.workspace-save-indicator.visible {
+    opacity: 1;
+}

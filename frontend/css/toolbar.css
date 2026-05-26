@@ -1,0 +1,127 @@
+/* Toolbar Styling */
+.toolbar {
+    height: 60px;
+    background-color: var(--bg-main);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 15px;
+    flex-shrink: 0;
+}
+
+.toolbar-nav-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.toolbar-nav-buttons button, .toolbar-views button {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.toolbar-nav-buttons button:hover:not(:disabled), .toolbar-views button:hover:not(.active) {
+    background-color: var(--bg-hover);
+    border-color: var(--accent-color);
+}
+
+.toolbar-nav-buttons button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.toolbar-views button.active {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--text-active);
+}
+
+.breadcrumb-container {
+    flex-grow: 1;
+    height: 32px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-sidebar);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    overflow: hidden;
+    position: relative;
+    cursor: text;
+}
+
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    white-space: nowrap;
+    width: 100%;
+    scrollbar-width: none; /* Firefox */
+}
+
+.breadcrumbs::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+.breadcrumb-segment {
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+
+.breadcrumb-segment:hover {
+    color: var(--text-active);
+    background-color: var(--bg-hover);
+}
+
+.breadcrumb-separator {
+    color: var(--border-color);
+}
+
+.address-bar {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.toolbar-search input {
+    background-color: var(--bg-sidebar);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.9rem;
+    width: 200px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.toolbar-search input:focus {
+    border-color: var(--accent-color);
+    width: 240px;
+}
+
+/* Toolbar override inside panes */
+.pane .toolbar {
+    height: 50px;
+    padding: 0 15px;
+    gap: 10px;
+}

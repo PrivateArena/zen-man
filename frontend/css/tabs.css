@@ -1,0 +1,213 @@
+/* Tabs Bar */
+.tabs-bar {
+    height: 35px;
+    background-color: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: flex-end;
+    padding: 0 10px;
+    gap: 4px;
+    flex-shrink: 0;
+    overflow-x: auto;
+}
+
+.tab {
+    height: 28px;
+    padding: 0 15px;
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    max-width: 150px;
+    min-width: 80px;
+    transition: all 0.15s;
+}
+
+.tab:hover {
+    color: var(--text-main);
+    background-color: var(--bg-hover);
+}
+
+.tab.active {
+    background-color: var(--bg-card);
+    color: var(--text-active);
+    border-color: var(--border-color);
+    font-weight: 500;
+}
+
+.tab-close {
+    font-size: 0.75rem;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s;
+}
+
+.tab-close:hover {
+    background-color: var(--bg-hover);
+    color: var(--danger-color);
+}
+
+/* Tabs Bar Override/Additions */
+.tabs-bar-container {
+    display: flex;
+    align-items: center;
+    background-color: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 10px;
+    height: 38px;
+    flex-shrink: 0;
+}
+
+.tabs-bar {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    flex-grow: 1;
+    height: 100%;
+    align-items: flex-end;
+    scrollbar-width: none;
+}
+
+.tabs-bar::-webkit-scrollbar {
+    display: none;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    max-width: 150px;
+    white-space: nowrap;
+    position: relative;
+    height: 30px;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.tab:hover {
+    color: var(--text-main);
+    background-color: var(--bg-hover);
+}
+
+.tab.active {
+    color: var(--text-active);
+    background-color: var(--bg-main);
+    border-color: var(--border-color);
+    border-top: 2px solid var(--accent-color);
+    font-weight: 500;
+}
+
+/* Tab Group Colors */
+.tab.group-red { border-top: 2px solid #ff4a4a !important; }
+.tab.group-blue { border-top: 2px solid #3b82f6 !important; }
+.tab.group-green { border-top: 2px solid #10b981 !important; }
+.tab.group-yellow { border-top: 2px solid #fbbf24 !important; }
+.tab.group-purple { border-top: 2px solid #8b5cf6 !important; }
+
+.tab-close {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.tab-close:hover {
+    background-color: var(--danger-color);
+    color: var(--text-active);
+}
+
+.btn-new-tab {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 10px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.btn-new-tab:hover {
+    color: var(--text-active);
+}
+
+/* Tab Group Collapsible Labels */
+.tab-group-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: var(--bg-hover);
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-active);
+    cursor: pointer;
+    height: 30px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-sizing: border-box;
+}
+
+.tab-group-label.group-red { border-top: 2px solid #ff4a4a !important; color: #ff4a4a; }
+.tab-group-label.group-blue { border-top: 2px solid #3b82f6 !important; color: #3b82f6; }
+.tab-group-label.group-green { border-top: 2px solid #10b981 !important; color: #10b981; }
+.tab-group-label.group-yellow { border-top: 2px solid #fbbf24 !important; color: #fbbf24; }
+.tab-group-label.group-purple { border-top: 2px solid #8b5cf6 !important; color: #8b5cf6; }
+
+.tab-group-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.group-red .tab-group-dot { background-color: #ff4a4a; }
+.group-blue .tab-group-dot { background-color: #3b82f6; }
+.group-green .tab-group-dot { background-color: #10b981; }
+.group-yellow .tab-group-dot { background-color: #fbbf24; }
+.group-purple .tab-group-dot { background-color: #8b5cf6; }
+
+/* Tab reordering drag transitions */
+.tab.dragging, .tab-group-label.dragging {
+    opacity: 0.4;
+}
+
+.tab.drag-over-left, .tab-group-label.drag-over-left {
+    border-left: 2px solid var(--accent-color) !important;
+}
+
+.tab.drag-over-right, .tab-group-label.drag-over-right {
+    border-right: 2px solid var(--accent-color) !important;
+}

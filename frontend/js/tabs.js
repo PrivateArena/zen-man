@@ -3,6 +3,11 @@ import { navigateTo, renderBreadcrumbs, updateNavButtons } from './navigation.js
 import { renderFiles } from './file-list.js';
 import { setActivePane } from './split-view.js';
 
+let _autoSaveCallback = null;
+export function initTabs(autoSaveCallback) {
+    _autoSaveCallback = autoSaveCallback;
+}
+
 // Tabs state operations
 export function createTab(paneId, path = '', group = '', color = '') {
     const id = 'tab_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
@@ -25,6 +30,7 @@ export function createTab(paneId, path = '', group = '', color = '') {
     
     renderTabs(paneId);
     navigateTo(path, true, paneId);
+    if (_autoSaveCallback) _autoSaveCallback();
 }
 
 export function renderTabs(paneId) {
@@ -260,6 +266,7 @@ export function switchTab(paneId, tabId) {
     renderFiles(paneId);
     renderBreadcrumbs(paneId);
     updateNavButtons(paneId);
+    if (_autoSaveCallback) _autoSaveCallback();
 }
 
 export function closeTab(paneId, tabId) {
@@ -284,6 +291,7 @@ export function closeTab(paneId, tabId) {
     renderFiles(paneId);
     renderBreadcrumbs(paneId);
     updateNavButtons(paneId);
+    if (_autoSaveCallback) _autoSaveCallback();
 }
 
 export function duplicateTab(paneId, tabId) {
@@ -299,6 +307,7 @@ export function assignTabGroup(paneId, tabId, color) {
         tab.group = color ? color : '';
         tab.color = color;
         renderTabs(paneId);
+        if (_autoSaveCallback) _autoSaveCallback();
     }
 }
 

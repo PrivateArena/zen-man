@@ -1,0 +1,41 @@
+/* CSS Reset and Variables */
+:root {
+    --bg-main: #0f1117;
+    --bg-sidebar: #090a0f;
+    --bg-card: #161821;
+    --bg-hover: #222533;
+    --border-color: #212534;
+    --accent-color: #5865f2;
+    --accent-hover: #4752c4;
+    --text-main: #e3e5e8;
+    --text-muted: #959ba4;
+    --text-active: #ffffff;
+    --danger-color: #f23f43;
+    --warning-color: #f0b232;
+    --success-color: #23a55a;
+    --font-stack: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    font-family: var(--font-stack);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* App Container Layout */
+.app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    position: relative;
+}
