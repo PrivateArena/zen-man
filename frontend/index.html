@@ -138,6 +138,69 @@
 
             </div>
         </main>
+
+        <!-- Right Sidebar Hover Trigger Zone -->
+        <div class="right-sidebar-trigger-zone"></div>
+
+        <!-- Right Sidebar: Custom Actions Manager -->
+        <aside class="right-sidebar" id="right-sidebar">
+            <div class="sidebar-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h2>Custom Actions</h2>
+                <button id="btn-add-action" class="btn-sidebar-action" title="Add New Action">+</button>
+            </div>
+            
+            <!-- Action Editor (hidden by default) -->
+            <div id="action-editor" class="action-editor" style="display: none;">
+                <div class="action-editor-field">
+                    <label for="action-name">Name</label>
+                    <input type="text" id="action-name" placeholder="e.g. Open in VS Code">
+                </div>
+                <div class="action-editor-field">
+                    <label for="action-icon">Icon (Emoji)</label>
+                    <input type="text" id="action-icon" placeholder="🖥️" maxlength="2" class="action-icon-input">
+                </div>
+                <div class="action-editor-field">
+                    <label for="action-command">Command</label>
+                    <input type="text" id="action-command" placeholder="Click tokens below...">
+                    <div class="action-variables">
+                        <span class="var-chip" data-var="{file}">{file}</span>
+                        <span class="var-chip" data-var="{files}">{files}</span>
+                        <span class="var-chip" data-var="{dir}">{dir}</span>
+                        <span class="var-chip" data-var="{name}">{name}</span>
+                        <span class="var-chip" data-var="{names}">{names}</span>
+                        <span class="var-chip" data-var="{parent}">{parent}</span>
+                    </div>
+                </div>
+                <div class="action-editor-field">
+                    <label>Live Preview</label>
+                    <div id="action-preview" class="action-preview">—</div>
+                </div>
+                <div class="action-editor-field">
+                    <label>Applies to</label>
+                    <div class="action-roles">
+                        <label class="role-option"><input type="radio" name="action-role" value="both" checked> 📄📁 Files & Folders</label>
+                        <label class="role-option"><input type="radio" name="action-role" value="files"> 📄 Files Only</label>
+                        <label class="role-option"><input type="radio" name="action-role" value="dirs"> 📁 Folders Only</label>
+                        <label class="role-option"><input type="radio" name="action-role" value="background"> 🖥️ Background</label>
+                    </div>
+                </div>
+                <div class="action-editor-field">
+                    <label for="action-patterns">File Patterns (e.g. *.js, *.png)</label>
+                    <input type="text" id="action-patterns" placeholder="Leave blank for all">
+                </div>
+                <div class="action-editor-field checkbox-field" style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="action-show-output">
+                    <label for="action-show-output" style="margin-bottom:0;">Show command output</label>
+                </div>
+                <div class="action-editor-buttons" style="display:flex; gap:10px; margin-top:15px;">
+                    <button id="action-save-btn" class="btn-global btn-accent">Save</button>
+                    <button id="action-cancel-btn" class="btn-global">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Action List Container -->
+            <div id="action-list" class="sidebar-nav"></div>
+        </aside>
     </div>
 
     <!-- Context Menu -->

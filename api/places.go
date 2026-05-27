@@ -11,9 +11,20 @@ import (
 	"sync"
 )
 
+type CustomAction struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Icon       string `json:"icon"`
+	Command    string `json:"command"`
+	Role       string `json:"role"` // "files" | "dirs" | "both" | "background"
+	Patterns   string `json:"patterns"`
+	ShowOutput bool   `json:"show_output"`
+}
+
 type Config struct {
-	Bookmarks  []string                     `json:"bookmarks"`
-	Workspaces map[string]WorkspaceSession `json:"workspaces"`
+	Bookmarks     []string                    `json:"bookmarks"`
+	Workspaces    map[string]WorkspaceSession `json:"workspaces"`
+	CustomActions []CustomAction              `json:"custom_actions"`
 }
 
 type WorkspaceSession struct {
@@ -64,8 +75,9 @@ func loadConfig() (Config, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			return Config{
-				Bookmarks:  []string{},
-				Workspaces: make(map[string]WorkspaceSession),
+				Bookmarks:     []string{},
+				Workspaces:    make(map[string]WorkspaceSession),
+				CustomActions: []CustomAction{},
 			}, nil
 		}
 		return Config{}, err
@@ -77,8 +89,9 @@ func loadConfig() (Config, error) {
 	if err != nil {
 		// If decoding fails, return fresh config to prevent bricking
 		return Config{
-			Bookmarks:  []string{},
-			Workspaces: make(map[string]WorkspaceSession),
+			Bookmarks:     []string{},
+			Workspaces:    make(map[string]WorkspaceSession),
+			CustomActions: []CustomAction{},
 		}, nil
 	}
 

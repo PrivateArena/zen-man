@@ -1,9 +1,10 @@
-import { state, getActiveTab, getPaneDom } from './state.js';
+import { state, getActiveTab, getPaneDom, getPaneTab } from './state.js';
 import { setActivePane } from './split-view.js';
 import { navigateTo } from './navigation.js';
 import { executeFileOp, openFile } from './api.js';
 import { updateItemSelectionStyles, updateSelectionUI } from './file-list.js';
 import { createTab, closeTab, duplicateTab, assignTabGroup } from './tabs.js';
+import { getActionsForContext, handleActionMenuClick } from './custom-actions.js';
 
 // Right Click Context Menu Handler
 export function handlePaneContextMenu(e, paneId) {
@@ -62,6 +63,13 @@ export function showContextMenu(e, targetPath, isDir, isItem) {
                 <span class="context-menu-shortcut">Ctrl+X</span>
             </div>
             <div class="context-menu-separator"></div>
+            <div class="context-menu-item" data-action="copy-path">
+                <span>Copy Path</span>
+            </div>
+            <div class="context-menu-item" data-action="copy-name">
+                <span>Copy Name</span>
+            </div>
+            <div class="context-menu-separator"></div>
             <div class="context-menu-item" data-action="rename">
                 <span>Rename</span>
                 <span class="context-menu-shortcut">F2</span>
@@ -83,6 +91,11 @@ export function showContextMenu(e, targetPath, isDir, isItem) {
                 <span class="context-menu-shortcut">Ctrl+Shift+N</span>
             </div>
         `;
+    }
+
+    const customHtml = getActionsForContext(isDir, isItem, targetPath);
+    if (customHtml) {
+        html += '<div class="context-menu-separator"></div>' + customHtml;
     }
 
     menu.innerHTML = html;
@@ -189,6 +202,34 @@ export async function triggerCreateFolder() {
     }
 }
 
+// Copy Path / Name helpers
+export function triggerCopyPath() {
+    const tab = getActiveTab();
+    if (!tab || tab.selectedPaths.size === 0) return;
+    const text = [...tab.selectedPaths].join('\n') + '\n';
+    navigator.clipboard.writeText(text);
+}
+
+export function triggerCopyName() {
+    const tab = getActiveTab();
+    if (!tab || tab.selectedPaths.size === 0) return;
+    const text = [...tab.selectedPaths].map(p => p.split('/').pop()).join('\n') + '\n';
+    navigator.clipboard.writeText(text);
+}
+
+export function triggerCopyTabPath(paneId, tabId) {
+    const tab = getPaneTab(paneId, tabId);
+    if (!tab || !tab.currentPath) return;
+    navigator.clipboard.writeText(tab.currentPath + '\n');
+}
+
+export function triggerCopyTabName(paneId, tabId) {
+    const tab = getPaneTab(paneId, tabId);
+    if (!tab || !tab.currentPath) return;
+    const name = tab.currentPath.split('/').pop() || tab.currentPath;
+    navigator.clipboard.writeText(name + '\n');
+}
+
 // Attach Event Delegation Listener
 document.addEventListener('DOMContentLoaded', () => {
     const contextMenu = document.getElementById('context-menu');
@@ -210,6 +251,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 triggerClipboard('copy');
             } else if (action === 'cut') {
                 triggerClipboard('cut');
+            } else if (action === 'copy-path') {
+                triggerCopyPath();
+            } else if (action === 'copy-name') {
+                triggerCopyName();
             } else if (action === 'rename') {
                 triggerRename();
             } else if (action === 'delete') {
@@ -224,6 +269,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 duplicateTab(paneId, tabId);
             } else if (action === 'assign-tab-group') {
                 assignTabGroup(paneId, tabId, color);
+            } else if (action === 'copy-tab-path') {
+                triggerCopyTabPath(paneId, tabId);
+            } else if (action === 'copy-tab-name') {
+                triggerCopyTabName(paneId, tabId);
+            } else if (action === 'custom-action') {
+                const actionId = item.getAttribute('data-action-id');
+                handleActionMenuClick(actionId);
             }
         });
     }

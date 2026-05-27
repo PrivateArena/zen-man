@@ -60,7 +60,8 @@ func main() {
 	mux.HandleFunc("/api/op", api.HandleFileOp)
 	mux.HandleFunc("/api/places", api.HandlePlaces)
 	mux.HandleFunc("/api/workspaces", api.HandleWorkspaces)
-	mux.HandleFunc("/api/action", handleCustomAction)
+	mux.HandleFunc("/api/actions", api.HandleActions)
+	mux.HandleFunc("/api/action/exec", api.HandleActionExec)
 	mux.HandleFunc("/api/props", handleProperties)
 
 	// Bind strictly to localhost loopback
@@ -86,10 +87,7 @@ func main() {
 // Dummy handler implementations for initial compilation
 
 
-func handleCustomAction(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"status": "success"}`))
-}
+
 
 func handleProperties(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

@@ -334,6 +334,13 @@ export function showTabContextMenu(e, paneId, tabId) {
             <span>Duplicate Tab</span>
         </div>
         <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="copy-tab-path" data-pane-id="${paneId}" data-tab-id="${tabId}">
+            <span>Copy Path</span>
+        </div>
+        <div class="context-menu-item" data-action="copy-tab-name" data-pane-id="${paneId}" data-tab-id="${tabId}">
+            <span>Copy Name</span>
+        </div>
+        <div class="context-menu-separator"></div>
         <div class="context-menu-header" style="padding: 5px 15px; font-size: 0.75rem; color: var(--text-muted); font-weight: bold;">TAB GROUP COLOR</div>
         ${groupHtml}
         <div class="context-menu-separator"></div>

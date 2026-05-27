@@ -37,6 +37,7 @@ import {
 } from './workspace.js';
 import { handlePaneContextMenu } from './context-menu.js';
 import { handleKeyboardShortcuts } from './keyboard.js';
+import { initCustomActions } from './custom-actions.js';
 
 // Initialize Module Callback Registrations to break circular dependencies
 initSplitView(updateSelectionUI, createTab);
@@ -50,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     loadSidebarPlaces();
     loadWorkspaces();
+    initCustomActions();
     
     // Restore previous default session (or create blank tab if none)
     restoreDefaultWorkspace();
