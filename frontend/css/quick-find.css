@@ -1,0 +1,254 @@
+/* Quick Find Modal Stylesheet */
+
+.quick-find-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(6, 7, 10, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 10vh;
+    animation: quickFindFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.quick-find-modal {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    width: 650px;
+    max-width: 90vw;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 
+                0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 75vh;
+    animation: quickFindScaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes quickFindFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes quickFindScaleUp {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Header */
+.quick-find-header {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: rgba(9, 10, 15, 0.4);
+}
+
+.quick-find-input-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.quick-find-icon {
+    position: absolute;
+    left: 12px;
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+#quick-find-input {
+    width: 100%;
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-main);
+    font-family: var(--font-stack);
+    font-size: 1rem;
+    padding: 10px 12px 10px 40px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#quick-find-input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.25);
+}
+
+/* Recursive Toggle Checkbox */
+.quick-find-recursive-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+    user-select: none;
+}
+
+.quick-find-recursive-toggle:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--text-muted);
+}
+
+.quick-find-recursive-toggle input {
+    display: none;
+}
+
+.quick-find-recursive-toggle span {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    transition: color 0.15s ease;
+}
+
+.quick-find-recursive-toggle input:checked + span {
+    color: var(--accent-color);
+}
+
+.quick-find-recursive-toggle::before {
+    content: "📁";
+    font-size: 0.95rem;
+    filter: grayscale(1);
+    opacity: 0.6;
+    transition: filter 0.15s ease, opacity 0.15s ease;
+}
+
+.quick-find-recursive-toggle:has(input:checked)::before {
+    content: "🔍";
+    filter: none;
+    opacity: 1;
+}
+
+/* Status Info Section */
+.quick-find-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background-color: rgba(9, 10, 15, 0.2);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.quick-find-path-label {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 70%;
+    direction: rtl;
+    text-align: left;
+}
+
+/* Results Area */
+.quick-find-results {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 450px;
+    background-color: rgba(15, 17, 23, 0.4);
+}
+
+.quick-find-results::-webkit-scrollbar {
+    width: 6px;
+}
+
+.quick-find-results::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.quick-find-results::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.quick-find-results::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* Individual Result Rows */
+.quick-find-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    transition: background-color 0.1s ease;
+    user-select: none;
+}
+
+.quick-find-item:hover,
+.quick-find-item.selected {
+    background-color: var(--bg-hover);
+}
+
+.quick-find-item.selected {
+    border-left: 3px solid var(--accent-color);
+    padding-left: 13px;
+}
+
+.quick-find-item-icon {
+    font-size: 1.25rem;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quick-find-item-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.quick-find-item-name {
+    font-weight: 500;
+    font-size: 0.95rem;
+    color: var(--text-main);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.quick-find-item-relpath {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    margin-top: 2px;
+}
+
+.quick-find-item-size {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-left: 16px;
+    white-space: nowrap;
+}
+
+.quick-find-empty {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}

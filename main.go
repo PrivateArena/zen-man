@@ -62,6 +62,7 @@ func main() {
 	mux.HandleFunc("/api/workspaces", api.HandleWorkspaces)
 	mux.HandleFunc("/api/actions", api.HandleActions)
 	mux.HandleFunc("/api/action/exec", api.HandleActionExec)
+	mux.HandleFunc("/api/search", api.HandleSearch)
 	mux.HandleFunc("/api/props", handleProperties)
 
 	// Bind strictly to localhost loopback

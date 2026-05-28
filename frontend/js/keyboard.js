@@ -2,6 +2,7 @@ import { state, getActiveTab, getActivePane } from './state.js';
 import { setSplitView } from './split-view.js';
 import { createTab, closeTab, switchTab } from './tabs.js';
 import { navigatePaneUp } from './navigation.js';
+import { openQuickFind } from './quick-find.js';
 import { 
     triggerClipboard, 
     triggerPaste, 
@@ -14,7 +15,11 @@ import {
 export function handleKeyboardShortcuts(e) {
     if (document.activeElement.tagName === 'INPUT') return;
 
-    if (e.key === 'F3') {
+    if (e.ctrlKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        openQuickFind();
+    }
+    else if (e.key === 'F3') {
         e.preventDefault();
         setSplitView(!state.isSplit);
     }
