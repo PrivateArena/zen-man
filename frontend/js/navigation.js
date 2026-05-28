@@ -154,8 +154,16 @@ export function setPaneViewMode(paneId, mode) {
     tab.viewMode = mode;
     const paneEl = getPaneDom(paneId);
     
-    paneEl.querySelector('.view-list').classList.toggle('active', mode === 'list');
-    paneEl.querySelector('.view-grid').classList.toggle('active', mode === 'grid');
+    const cycleBtn = paneEl.querySelector('.btn-cycle-view');
+    if (cycleBtn) {
+        if (mode === 'list') {
+            cycleBtn.innerHTML = '&#9776;'; // Show list icon (☰) when in list mode
+            cycleBtn.title = 'Switch to Grid View';
+        } else {
+            cycleBtn.innerHTML = '&#9830;'; // Show grid icon (♦) when in grid mode
+            cycleBtn.title = 'Switch to List View';
+        }
+    }
     
     const fileListEl = paneEl.querySelector('.file-list');
     fileListEl.className = mode === 'list' ? 'file-list list-view' : 'file-list grid-view';

@@ -94,9 +94,15 @@ function setupEventListeners() {
 function setupPaneListeners(paneId) {
     const paneEl = getPaneDom(paneId);
     
-    // View Toggles
-    paneEl.querySelector('.view-list').addEventListener('click', () => import('./navigation.js').then(m => m.setPaneViewMode(paneId, 'list')));
-    paneEl.querySelector('.view-grid').addEventListener('click', () => import('./navigation.js').then(m => m.setPaneViewMode(paneId, 'grid')));
+    // View Toggles (Cycle Mode)
+    paneEl.querySelector('.btn-cycle-view').addEventListener('click', () => {
+        const pane = state.panes[paneId];
+        const tab = pane.tabs.find(t => t.id === pane.activeTabId);
+        if (tab) {
+            const nextMode = tab.viewMode === 'list' ? 'grid' : 'list';
+            import('./navigation.js').then(m => m.setPaneViewMode(paneId, nextMode));
+        }
+    });
     
     // Navigation Buttons
     paneEl.querySelector('.nav-back').addEventListener('click', () => navigatePaneHistory(paneId, -1));
