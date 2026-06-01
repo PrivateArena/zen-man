@@ -64,6 +64,8 @@ func main() {
 	mux.HandleFunc("/api/action/exec", api.HandleActionExec)
 	mux.HandleFunc("/api/search", api.HandleSearch)
 	mux.HandleFunc("/api/props", handleProperties)
+	mux.HandleFunc("/api/log", api.HandleLog)
+	mux.HandleFunc("/api/log/revert", api.HandleLogRevert)
 
 	// Bind strictly to localhost loopback
 	addr := fmt.Sprintf("127.0.0.1:%d", *portFlag)

@@ -112,6 +112,9 @@ func handleClipboardSet(w http.ResponseWriter, op string, sources []string) {
 	// Sync to system clipboard
 	writeToSystemClipboard(sources)
 
+	// Log clipboard set (ActionCopy covers both "copy" and "cut" clipboard intent)
+	GetLog().Append(ActionCopy, sources, "", "")
+
 	w.Write([]byte(`{"status": "success"}`))
 }
 
@@ -209,6 +212,13 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 		return
 	}
 
+	// Log after confirmed success — action type encodes whether files were copied or moved
+	logAction := ActionPasteCopy
+	if operation == "cut" {
+		logAction = ActionPasteMove
+	}
+	GetLog().Append(logAction, paths, req.Dest, "")
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":    "success",
@@ -220,11 +230,18 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 
 func handleDelete(w http.ResponseWriter, sources []string) {
 	var lastErr error
+	var deleted []string
 	for _, src := range sources {
-		err := os.RemoveAll(src)
-		if err != nil {
+		if err := os.RemoveAll(src); err != nil {
 			lastErr = err
+		} else {
+			deleted = append(deleted, src)
 		}
+	}
+
+	// Log only confirmed deletions — partial success is still logged
+	if len(deleted) > 0 {
+		GetLog().Append(ActionDelete, deleted, "", "")
 	}
 
 	if lastErr != nil {
@@ -248,6 +265,9 @@ func handleRename(w http.ResponseWriter, sources []string, newName string) {
 		http.Error(w, fmt.Sprintf(`{"error": "Rename failed: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
+
+	// Log: source = original path, name = the new name applied
+	GetLog().Append(ActionRename, []string{src}, "", newName)
 
 	info, err := os.Stat(dst)
 	if err != nil {
@@ -279,6 +299,9 @@ func handleMkdir(w http.ResponseWriter, dest string, name string) {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to create directory: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
+
+	// Log: sources empty (no pre-existing file), dest = parent, name = new dir name
+	GetLog().Append(ActionMkdir, []string{}, dest, name)
 
 	info, err := os.Stat(target)
 	if err != nil {

@@ -53,6 +53,7 @@
                     <span id="workspace-save-indicator" class="workspace-save-indicator">✓ Saved</span>
                 </div>
                 <div class="global-actions">
+                    <button id="action-log-toggle" class="btn-global" title="Action History (H)" aria-label="Toggle action history panel">History</button>
                     <button id="split-toggle-btn" class="btn-global btn-accent" title="Toggle Split Dual View (F3)">Split View (F3)</button>
                 </div>
             </header>
@@ -225,6 +226,19 @@
     <!-- Context Menu -->
     <div id="context-menu" class="context-menu" style="display: none;"></div>
 
+    <!-- Action History Panel -->
+    <aside id="action-log-panel" class="action-log-panel" role="complementary" aria-label="Action history">
+        <div class="action-log-header">
+            <h2 class="action-log-title">Action History</h2>
+            <button id="action-log-close" class="action-log-close" title="Close (Esc)" aria-label="Close history panel">✕</button>
+        </div>
+        <p class="action-log-desc">Recent file operations. Reversible actions can be undone instantly.</p>
+        <div id="action-log-status" class="action-log-status"></div>
+        <div id="action-log-list" class="action-log-list"></div>
+    </aside>
+    <div id="action-log-backdrop" class="action-log-backdrop"></div>
+
     <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/action-log-init.js"></script>
 </body>
 </html>
