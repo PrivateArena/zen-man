@@ -11,3 +11,25 @@
     color: var(--text-muted);
     flex-shrink: 0;
 }
+
+.btn-status-delete {
+    margin-left: 12px;
+    background-color: var(--danger-color);
+    color: var(--text-active);
+    border: none;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-family: var(--font-stack);
+    font-weight: 500;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.btn-status-delete:hover {
+    background-color: #ff5c5c;
+}
+
+.btn-status-delete:active {
+    transform: scale(0.95);
+}

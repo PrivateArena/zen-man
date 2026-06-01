@@ -8,7 +8,9 @@ import {
     triggerPaste, 
     triggerRename, 
     triggerDelete, 
-    triggerOpen 
+    triggerOpen,
+    triggerCopyPath,
+    triggerCopyName
 } from './context-menu.js';
 
 // Keyboard Shortcuts Router
@@ -53,6 +55,14 @@ export function handleKeyboardShortcuts(e) {
     }
     else if (e.ctrlKey && e.key.toLowerCase() === 'v') {
         triggerPaste();
+    }
+    else if (e.altKey && e.shiftKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        triggerCopyName();
+    }
+    else if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        triggerCopyPath();
     }
     else if (e.key === 'F2') {
         triggerRename();

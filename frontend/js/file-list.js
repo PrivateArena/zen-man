@@ -191,17 +191,53 @@ export function attachItemEventListeners(paneId) {
                 try {
                     const sources = JSON.parse(dataStr);
                     if (sources && sources.length > 0) {
-                        await executeFileOp('paste', sources, path);
-                        if (navigateToCallback) navigateToCallback(tab.currentPath, false, paneId);
+                        const data = await executeFileOp('paste', sources, path);
+                        const { operation, sources: returnedSources, entries } = data;
                         
-                        // If split, reload the other pane too in case it was displaying the destination directory
-                        const otherPaneId = paneId === 'left' ? 'right' : 'left';
-                        if (state.isSplit) {
-                            const otherTab = state.panes[otherPaneId].tabs.find(t => t.id === state.panes[otherPaneId].activeTabId);
-                            if (otherTab && (otherTab.currentPath === path || otherTab.currentPath === tab.currentPath)) {
-                                if (navigateToCallback) navigateToCallback(otherTab.currentPath, false, otherPaneId);
-                            }
+                        if (operation === 'cut' && sources && sources.length > 0) {
+                            const sourcePaths = new Set(sources);
+                            Object.keys(state.panes).forEach(pId => {
+                                const p = state.panes[pId];
+                                p.tabs.forEach(t => {
+                                    t.loadedEntries = t.loadedEntries.filter(entry => {
+                                        const fullPath = t.currentPath + (t.currentPath.endsWith('/') ? '' : '/') + entry.name;
+                                        return !sourcePaths.has(fullPath);
+                                    });
+                                    sources.forEach(src => t.selectedPaths.delete(src));
+                                });
+                            });
                         }
+                        
+                        if (entries && entries.length > 0) {
+                            Object.keys(state.panes).forEach(pId => {
+                                const p = state.panes[pId];
+                                p.tabs.forEach(t => {
+                                    if (t.currentPath === path) {
+                                        const newNames = new Set(entries.map(e => e.name));
+                                        t.loadedEntries = t.loadedEntries.filter(e => !newNames.has(e.name));
+                                        t.loadedEntries.push(...entries);
+                                        t.loadedEntries.sort((a, b) => {
+                                            if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+                                            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+                                        });
+                                    }
+                                });
+                            });
+                        }
+                        
+                        Object.keys(state.panes).forEach(pId => {
+                            const p = state.panes[pId];
+                            const activeTab = p.tabs.find(t => t.id === p.activeTabId);
+                            if (activeTab) {
+                                renderFiles(pId);
+                                updateSelectionUI(pId);
+                                
+                                const infoEl = getPaneDom(pId).querySelector('.status-info');
+                                if (infoEl) {
+                                    infoEl.textContent = `${activeTab.loadedEntries.length} items`;
+                                }
+                            }
+                        });
                     }
                 } catch (err) {
                     console.error(err);
@@ -281,7 +317,7 @@ export function handleItemClick(paneId, path, ctrlKey, shiftKey) {
     }
     
     updateItemSelectionStyles(paneId);
-    updateSelectionUI();
+    updateSelectionUI(paneId);
 }
 
 export function updateItemSelectionStyles(paneId) {
@@ -300,10 +336,23 @@ export function updateItemSelectionStyles(paneId) {
     });
 }
 
-export function updateSelectionUI() {
-    const tab = getActiveTab();
+export function updateSelectionUI(paneId = state.activePane) {
+    const pane = state.panes[paneId];
+    const tab = pane ? pane.tabs.find(t => t.id === pane.activeTabId) : null;
     if (!tab) return;
     const count = tab.selectedPaths.size;
-    const selectEl = getPaneDom(state.activePane).querySelector('.status-selection');
-    selectEl.textContent = `${count} item${count === 1 ? '' : 's'} selected`;
+    const selectEl = getPaneDom(paneId).querySelector('.status-selection');
+    
+    if (count > 0) {
+        selectEl.innerHTML = `
+            <span>${count} item${count === 1 ? '' : 's'} selected</span>
+            <button class="btn-status-delete" title="Delete Selected Items">Delete</button>
+        `;
+        selectEl.querySelector('.btn-status-delete').addEventListener('click', (e) => {
+            e.stopPropagation();
+            import('./context-menu.js').then(m => m.triggerDelete());
+        });
+    } else {
+        selectEl.textContent = `0 items selected`;
+    }
 }

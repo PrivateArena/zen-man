@@ -24,7 +24,7 @@ export async function navigateTo(path, recordHistory = true, paneId = state.acti
     const infoEl = getPaneDom(paneId).querySelector('.status-info');
     infoEl.textContent = 'Loading directory...';
     tab.selectedPaths.clear();
-    updateSelectionUI();
+    updateSelectionUI(paneId);
 
     try {
         const response = await fetch(`/api/dir?path=${encodeURIComponent(path)}`);

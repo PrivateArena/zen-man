@@ -87,7 +87,9 @@ export async function loadWorkspaces() {
         let html = '<option value="default">Default</option>';
         if (data.workspaces) {
             data.workspaces.forEach(w => {
-                html += `<option value="${w}">${w}</option>`;
+                if (w.toLowerCase() !== 'default') {
+                    html += `<option value="${w}">${w}</option>`;
+                }
             });
         }
         select.innerHTML = html;
@@ -143,6 +145,10 @@ export async function triggerSaveWorkspace() {
     const name = nameInput.value.trim();
     if (!name) {
         alert('Please enter a workspace name.');
+        return;
+    }
+    if (name.toLowerCase() === 'default') {
+        alert('Cannot overwrite or create a workspace named "default".');
         return;
     }
 

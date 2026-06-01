@@ -121,23 +121,30 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 		return
 	}
 
-	// 1. Try to read from system clipboard
-	paths, err := readFromSystemClipboard()
-	
-	// Fall back to internal state if system clipboard is empty or fails
-	clipboardMutex.Lock()
-	if err != nil || len(paths) == 0 {
-		paths = currentClipboard.Sources
+	var paths []string
+	var err error
+	if len(req.Sources) > 0 {
+		paths = req.Sources
+	} else {
+		// 1. Try to read from system clipboard
+		paths, err = readFromSystemClipboard()
+		
+		// Fall back to internal state if system clipboard is empty or fails
+		clipboardMutex.Lock()
+		if err != nil || len(paths) == 0 {
+			paths = currentClipboard.Sources
+		}
+		clipboardMutex.Unlock()
 	}
 	
 	if len(paths) == 0 {
-		clipboardMutex.Unlock()
 		http.Error(w, `{"error": "Clipboard is empty"}`, http.StatusBadRequest)
 		return
 	}
 
 	// Check if this matches internal sources to determine operation
 	operation := "copy"
+	clipboardMutex.Lock()
 	if len(paths) == len(currentClipboard.Sources) {
 		match := true
 		for i, p := range paths {
@@ -153,6 +160,7 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 	clipboardMutex.Unlock()
 
 	var lastErr error
+	var pastedEntries []FileEntry
 	for _, src := range paths {
 		name := filepath.Base(src)
 		dst := filepath.Join(req.Dest, name)
@@ -163,14 +171,27 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 		}
 
 		if operation == "cut" {
-			err := moveItem(src, dst)
+			err = moveItem(src, dst)
 			if err != nil {
 				lastErr = err
 			}
 		} else {
-			err := copyItem(src, dst)
+			err = copyItem(src, dst)
 			if err != nil {
 				lastErr = err
+			}
+		}
+
+		if lastErr == nil {
+			info, err := os.Stat(dst)
+			if err == nil {
+				pastedEntries = append(pastedEntries, FileEntry{
+					Name:    info.Name(),
+					IsDir:   info.IsDir(),
+					Size:    info.Size(),
+					ModTime: info.ModTime().Unix(),
+					Mode:    info.Mode().String(),
+				})
 			}
 		}
 	}
@@ -188,7 +209,13 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 		return
 	}
 
-	w.Write([]byte(`{"status": "success"}`))
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":    "success",
+		"operation": operation,
+		"sources":   paths,
+		"entries":   pastedEntries,
+	})
 }
 
 func handleDelete(w http.ResponseWriter, sources []string) {
@@ -222,7 +249,23 @@ func handleRename(w http.ResponseWriter, sources []string, newName string) {
 		return
 	}
 
-	w.Write([]byte(`{"status": "success"}`))
+	info, err := os.Stat(dst)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to stat renamed item: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+	entry := FileEntry{
+		Name:    info.Name(),
+		IsDir:   info.IsDir(),
+		Size:    info.Size(),
+		ModTime: info.ModTime().Unix(),
+		Mode:    info.Mode().String(),
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "success",
+		"entry":  entry,
+	})
 }
 
 func handleMkdir(w http.ResponseWriter, dest string, name string) {
@@ -237,7 +280,23 @@ func handleMkdir(w http.ResponseWriter, dest string, name string) {
 		return
 	}
 
-	w.Write([]byte(`{"status": "success"}`))
+	info, err := os.Stat(target)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to stat new directory: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+	entry := FileEntry{
+		Name:    info.Name(),
+		IsDir:   info.IsDir(),
+		Size:    info.Size(),
+		ModTime: info.ModTime().Unix(),
+		Mode:    info.Mode().String(),
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "success",
+		"entry":  entry,
+	})
 }
 
 // OS integration helper functions

@@ -2,7 +2,7 @@ import { state, getActiveTab, getPaneDom, getPaneTab } from './state.js';
 import { setActivePane } from './split-view.js';
 import { navigateTo } from './navigation.js';
 import { executeFileOp, openFile } from './api.js';
-import { updateItemSelectionStyles, updateSelectionUI } from './file-list.js';
+import { updateItemSelectionStyles, updateSelectionUI, renderFiles } from './file-list.js';
 import { createTab, closeTab, duplicateTab, assignTabGroup } from './tabs.js';
 import { getActionsForContext, handleActionMenuClick } from './custom-actions.js';
 
@@ -65,9 +65,11 @@ export function showContextMenu(e, targetPath, isDir, isItem) {
             <div class="context-menu-separator"></div>
             <div class="context-menu-item" data-action="copy-path">
                 <span>Copy Path</span>
+                <span class="context-menu-shortcut">Alt+C</span>
             </div>
             <div class="context-menu-item" data-action="copy-name">
                 <span>Copy Name</span>
+                <span class="context-menu-shortcut">Alt+Shift+C</span>
             </div>
             <div class="context-menu-separator"></div>
             <div class="context-menu-item" data-action="rename">
@@ -142,17 +144,53 @@ export async function triggerPaste() {
     const tab = getActiveTab();
     if (!tab) return;
     try {
-        await executeFileOp('paste', [], tab.currentPath);
-        navigateTo(tab.currentPath, false, state.activePane);
+        const data = await executeFileOp('paste', [], tab.currentPath);
+        const { operation, sources, entries } = data;
         
-        // Refresh opposite pane if displaying same path
-        const oppositePaneId = state.activePane === 'left' ? 'right' : 'left';
-        if (state.isSplit) {
-            const oppTab = state.panes[oppositePaneId].tabs.find(t => t.id === state.panes[oppositePaneId].activeTabId);
-            if (oppTab && oppTab.currentPath === tab.currentPath) {
-                navigateTo(oppTab.currentPath, false, oppositePaneId);
-            }
+        if (operation === 'cut' && sources && sources.length > 0) {
+            const sourcePaths = new Set(sources);
+            Object.keys(state.panes).forEach(paneId => {
+                const pane = state.panes[paneId];
+                pane.tabs.forEach(t => {
+                    t.loadedEntries = t.loadedEntries.filter(entry => {
+                        const fullPath = t.currentPath + (t.currentPath.endsWith('/') ? '' : '/') + entry.name;
+                        return !sourcePaths.has(fullPath);
+                    });
+                    sources.forEach(src => t.selectedPaths.delete(src));
+                });
+            });
         }
+        
+        if (entries && entries.length > 0) {
+            Object.keys(state.panes).forEach(paneId => {
+                const pane = state.panes[paneId];
+                pane.tabs.forEach(t => {
+                    if (t.currentPath === tab.currentPath) {
+                        const newNames = new Set(entries.map(e => e.name));
+                        t.loadedEntries = t.loadedEntries.filter(e => !newNames.has(e.name));
+                        t.loadedEntries.push(...entries);
+                        t.loadedEntries.sort((a, b) => {
+                            if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+                            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+                        });
+                    }
+                });
+            });
+        }
+        
+        Object.keys(state.panes).forEach(paneId => {
+            const pane = state.panes[paneId];
+            const activeTab = pane.tabs.find(t => t.id === pane.activeTabId);
+            if (activeTab) {
+                renderFiles(paneId);
+                updateSelectionUI(paneId);
+                
+                const infoEl = getPaneDom(paneId).querySelector('.status-info');
+                if (infoEl) {
+                    infoEl.textContent = `${activeTab.loadedEntries.length} items`;
+                }
+            }
+        });
     } catch (err) {
         alert(`Paste failed: ${err.message}`);
     }
@@ -166,8 +204,34 @@ export async function triggerRename() {
     const newName = prompt('Enter new name:', oldName);
     if (newName && newName !== oldName) {
         try {
-            await executeFileOp('rename', [oldPath], null, newName);
-            navigateTo(tab.currentPath, false, state.activePane);
+            const data = await executeFileOp('rename', [oldPath], null, newName);
+            const newEntry = data.entry;
+            const newPath = oldPath.substring(0, oldPath.lastIndexOf('/') + 1) + newName;
+            
+            Object.keys(state.panes).forEach(paneId => {
+                const pane = state.panes[paneId];
+                pane.tabs.forEach(t => {
+                    if (t.currentPath === tab.currentPath) {
+                        t.loadedEntries = t.loadedEntries.map(entry => {
+                            if (entry.name === oldName && newEntry) {
+                                return newEntry;
+                            }
+                            return entry;
+                        });
+                        
+                        if (t.selectedPaths.has(oldPath)) {
+                            t.selectedPaths.delete(oldPath);
+                            t.selectedPaths.add(newPath);
+                        }
+                    }
+                });
+                
+                const activeTab = pane.tabs.find(t => t.id === pane.activeTabId);
+                if (activeTab && activeTab.currentPath === tab.currentPath) {
+                    renderFiles(paneId);
+                    updateSelectionUI(paneId);
+                }
+            });
         } catch (err) {
             alert(`Rename failed: ${err.message}`);
         }
@@ -180,8 +244,35 @@ export async function triggerDelete() {
     const confirmMsg = `Are you sure you want to permanently delete these ${tab.selectedPaths.size} item(s)?`;
     if (confirm(confirmMsg)) {
         try {
-            await executeFileOp('delete', [...tab.selectedPaths]);
-            navigateTo(tab.currentPath, false, state.activePane);
+            const pathsToDelete = [...tab.selectedPaths];
+            await executeFileOp('delete', pathsToDelete);
+            
+            const deletedSet = new Set(pathsToDelete);
+            const targetPath = tab.currentPath;
+            
+            Object.keys(state.panes).forEach(paneId => {
+                const pane = state.panes[paneId];
+                pane.tabs.forEach(t => {
+                    if (t.currentPath === targetPath) {
+                        t.loadedEntries = t.loadedEntries.filter(entry => {
+                            const fullPath = t.currentPath + (t.currentPath.endsWith('/') ? '' : '/') + entry.name;
+                            return !deletedSet.has(fullPath);
+                        });
+                        pathsToDelete.forEach(path => t.selectedPaths.delete(path));
+                    }
+                });
+                
+                const activeTab = pane.tabs.find(t => t.id === pane.activeTabId);
+                if (activeTab && activeTab.currentPath === targetPath) {
+                    renderFiles(paneId);
+                    updateSelectionUI(paneId);
+                    
+                    const infoEl = getPaneDom(paneId).querySelector('.status-info');
+                    if (infoEl) {
+                        infoEl.textContent = `${activeTab.loadedEntries.length} items`;
+                    }
+                }
+            });
         } catch (err) {
             alert(`Delete failed: ${err.message}`);
         }
@@ -194,8 +285,31 @@ export async function triggerCreateFolder() {
     const folderName = prompt('Enter new folder name:', 'New Folder');
     if (folderName) {
         try {
-            await executeFileOp('mkdir', [], tab.currentPath, folderName);
-            navigateTo(tab.currentPath, false, state.activePane);
+            const data = await executeFileOp('mkdir', [], tab.currentPath, folderName);
+            const newEntry = data.entry;
+            
+            Object.keys(state.panes).forEach(paneId => {
+                const pane = state.panes[paneId];
+                pane.tabs.forEach(t => {
+                    if (t.currentPath === tab.currentPath && newEntry) {
+                        t.loadedEntries.push(newEntry);
+                        t.loadedEntries.sort((a, b) => {
+                            if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+                            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+                        });
+                    }
+                });
+                
+                const activeTab = pane.tabs.find(t => t.id === pane.activeTabId);
+                if (activeTab && activeTab.currentPath === tab.currentPath) {
+                    renderFiles(paneId);
+                    
+                    const infoEl = getPaneDom(paneId).querySelector('.status-info');
+                    if (infoEl) {
+                        infoEl.textContent = `${activeTab.loadedEntries.length} items`;
+                    }
+                }
+            });
         } catch (err) {
             alert(`Failed to create directory: ${err.message}`);
         }
