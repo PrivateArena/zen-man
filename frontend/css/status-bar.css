@@ -33,3 +33,144 @@
 .btn-status-delete:active {
     transform: scale(0.95);
 }
+
+.status-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.status-selection,
+.status-action {
+    position: relative;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+}
+
+.status-selection:has(.status-selection-tooltip) .status-selection-text {
+    border-bottom: 1px dashed var(--text-muted);
+    transition: color 0.2s, border-bottom-color 0.2s;
+}
+
+.status-selection:has(.status-selection-tooltip):hover .status-selection-text {
+    color: var(--accent-color);
+    border-bottom-color: var(--accent-color);
+}
+
+.status-action:has(.status-action-tooltip) .status-action-text {
+    border-bottom: 1px dashed var(--text-muted);
+    transition: color 0.2s, border-bottom-color 0.2s;
+}
+
+.status-action:has(.status-action-tooltip):hover .status-action-text {
+    color: var(--warning-color);
+    border-bottom-color: var(--warning-color);
+}
+
+/* Tooltip Container */
+.status-selection-tooltip,
+.status-action-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    z-index: 100;
+    min-width: 250px;
+    max-width: 350px;
+    background-color: rgba(22, 24, 33, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(255, 255, 255, 0.05);
+    padding: 12px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px);
+    transition: opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1), 
+                transform 0.18s cubic-bezier(0.4, 0, 0.2, 1), 
+                visibility 0.18s;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.status-selection:hover .status-selection-tooltip,
+.status-action:hover .status-action-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* Header */
+.status-selection-tooltip .tooltip-header,
+.status-action-tooltip .tooltip-header {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Body and Scrollable List */
+.status-selection-tooltip .tooltip-body,
+.status-action-tooltip .tooltip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+/* Tooltip Row Item */
+.status-selection-tooltip .tooltip-item,
+.status-action-tooltip .tooltip-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--text-main);
+    padding: 2px 0;
+    transition: color 0.15s;
+}
+
+.status-selection-tooltip .tooltip-item-icon,
+.status-action-tooltip .tooltip-item-icon {
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.status-selection-tooltip .tooltip-item-name,
+.status-action-tooltip .tooltip-item-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+}
+
+.status-selection-tooltip .tooltip-item-size,
+.status-action-tooltip .tooltip-item-size {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+/* More/Truncated text */
+.status-selection-tooltip .tooltip-more,
+.status-action-tooltip .tooltip-more {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border-color);
+    text-align: center;
+}

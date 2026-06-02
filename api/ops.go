@@ -61,6 +61,8 @@ func HandleFileOp(w http.ResponseWriter, r *http.Request) {
 		handleClipboardSet(w, "copy", req.Sources)
 	case "cut":
 		handleClipboardSet(w, "cut", req.Sources)
+	case "clear":
+		handleClearClipboard(w)
 	case "paste":
 		handlePaste(w, req)
 	case "delete":
@@ -114,6 +116,16 @@ func handleClipboardSet(w http.ResponseWriter, op string, sources []string) {
 
 	// Log clipboard set (ActionCopy covers both "copy" and "cut" clipboard intent)
 	GetLog().Append(ActionCopy, sources, "", "")
+
+	w.Write([]byte(`{"status": "success"}`))
+}
+
+func handleClearClipboard(w http.ResponseWriter) {
+	clipboardMutex.Lock()
+	currentClipboard = ClipboardState{}
+	clipboardMutex.Unlock()
+
+	writeToSystemClipboard([]string{})
 
 	w.Write([]byte(`{"status": "success"}`))
 }

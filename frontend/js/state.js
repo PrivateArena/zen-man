@@ -16,6 +16,10 @@ export const state = {
         }
     },
     isLoading: false,
+    clipboard: {
+        op: null,
+        items: []
+    }
 };
 
 export const dragTabState = {

@@ -344,15 +344,128 @@ export function updateSelectionUI(paneId = state.activePane) {
     const selectEl = getPaneDom(paneId).querySelector('.status-selection');
     
     if (count > 0) {
+        const selectedList = [];
+        tab.loadedEntries.forEach(entry => {
+            const fullPath = tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + entry.name;
+            if (tab.selectedPaths.has(fullPath)) {
+                selectedList.push({
+                    name: entry.name,
+                    isDir: entry.is_dir,
+                    size: entry.size
+                });
+            }
+        });
+        
+        if (selectedList.length < count) {
+            tab.selectedPaths.forEach(path => {
+                const name = path.split('/').pop() || path;
+                const alreadyAdded = selectedList.some(item => item.name === name);
+                if (!alreadyAdded) {
+                    selectedList.push({
+                        name: name,
+                        isDir: path.endsWith('/') || !name.includes('.'),
+                        size: null
+                    });
+                }
+            });
+        }
+        
+        const maxDisplay = 10;
+        const displayed = selectedList.slice(0, maxDisplay);
+        const remaining = selectedList.length - maxDisplay;
+        
+        let tooltipItemsHtml = displayed.map(item => {
+            const icon = item.isDir ? '📁' : '📄';
+            const iconClass = item.isDir ? 'icon-folder' : 'icon-file';
+            const sizeStr = (item.isDir || item.size === null) ? '' : `<span class="tooltip-item-size">${formatSize(item.size)}</span>`;
+            return `
+                <div class="tooltip-item">
+                    <span class="${iconClass} tooltip-item-icon">${icon}</span>
+                    <span class="tooltip-item-name" title="${item.name}">${item.name}</span>
+                    ${sizeStr}
+                </div>
+            `;
+        }).join('');
+        
+        if (remaining > 0) {
+            tooltipItemsHtml += `
+                <div class="tooltip-more">and ${remaining} more item${remaining > 1 ? 's' : ''}...</div>
+            `;
+        }
+
         selectEl.innerHTML = `
-            <span>${count} item${count === 1 ? '' : 's'} selected</span>
+            <span class="status-selection-text">${count} item${count === 1 ? '' : 's'} selected</span>
             <button class="btn-status-delete" title="Delete Selected Items">Delete</button>
+            <div class="status-selection-tooltip">
+                <div class="tooltip-header">Selected Items (${count})</div>
+                <div class="tooltip-body">
+                    ${tooltipItemsHtml}
+                </div>
+            </div>
         `;
+        
         selectEl.querySelector('.btn-status-delete').addEventListener('click', (e) => {
             e.stopPropagation();
             import('./context-menu.js').then(m => m.triggerDelete());
         });
     } else {
-        selectEl.textContent = `0 items selected`;
+        selectEl.innerHTML = `<span class="status-selection-text">0 items selected</span>`;
     }
+}
+
+export function updateClipboardUI() {
+    const isClipboardActive = state.clipboard && state.clipboard.items && state.clipboard.items.length > 0;
+    const count = isClipboardActive ? state.clipboard.items.length : 0;
+    const op = isClipboardActive ? state.clipboard.op : null;
+    
+    ['left', 'right'].forEach(paneId => {
+        const paneEl = getPaneDom(paneId);
+        if (!paneEl) return;
+        const actionEl = paneEl.querySelector('.status-action');
+        if (!actionEl) return;
+        
+        if (count > 0) {
+            const icon = op === 'cut' ? '✂️' : '📋';
+            const maxDisplay = 10;
+            const displayed = state.clipboard.items.slice(0, maxDisplay);
+            const remaining = state.clipboard.items.length - maxDisplay;
+            
+            let tooltipItemsHtml = displayed.map(item => {
+                const itemIcon = item.isDir ? '📁' : '📄';
+                const iconClass = item.isDir ? 'icon-folder' : 'icon-file';
+                const sizeStr = (item.isDir || item.size === null) ? '' : `<span class="tooltip-item-size">${formatSize(item.size)}</span>`;
+                return `
+                    <div class="tooltip-item">
+                        <span class="${iconClass} tooltip-item-icon">${itemIcon}</span>
+                        <span class="tooltip-item-name" title="${item.name}">${item.name}</span>
+                        ${sizeStr}
+                    </div>
+                `;
+            }).join('');
+            
+            if (remaining > 0) {
+                tooltipItemsHtml += `
+                    <div class="tooltip-more">and ${remaining} more item${remaining > 1 ? 's' : ''}...</div>
+                `;
+            }
+
+            actionEl.innerHTML = `
+                <span class="status-action-text" title="Click to abort action">${icon} ${count} item${count === 1 ? '' : 's'} in action</span>
+                <div class="status-action-tooltip">
+                    <div class="tooltip-header">In-Action Items (${count})</div>
+                    <div class="tooltip-body">
+                        ${tooltipItemsHtml}
+                    </div>
+                </div>
+            `;
+            actionEl.style.display = 'inline-flex';
+            actionEl.querySelector('.status-action-text').addEventListener('click', (e) => {
+                e.stopPropagation();
+                import('./context-menu.js').then(m => m.triggerClearClipboard());
+            });
+        } else {
+            actionEl.innerHTML = '';
+            actionEl.style.display = 'none';
+        }
+    });
 }

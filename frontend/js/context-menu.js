@@ -2,7 +2,7 @@ import { state, getActiveTab, getPaneDom, getPaneTab } from './state.js';
 import { setActivePane } from './split-view.js';
 import { navigateTo } from './navigation.js';
 import { executeFileOp, openFile } from './api.js';
-import { updateItemSelectionStyles, updateSelectionUI, renderFiles } from './file-list.js';
+import { updateItemSelectionStyles, updateSelectionUI, renderFiles, updateClipboardUI } from './file-list.js';
 import { createTab, closeTab, duplicateTab, assignTabGroup } from './tabs.js';
 import { getActionsForContext, handleActionMenuClick } from './custom-actions.js';
 
@@ -133,10 +133,62 @@ export async function triggerClipboard(op) {
     if (!tab || tab.selectedPaths.size === 0) return;
     try {
         await executeFileOp(op, [...tab.selectedPaths]);
+        
+        const clipboardItems = [];
+        tab.loadedEntries.forEach(entry => {
+            const fullPath = tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + entry.name;
+            if (tab.selectedPaths.has(fullPath)) {
+                clipboardItems.push({
+                    name: entry.name,
+                    path: fullPath,
+                    isDir: entry.is_dir,
+                    size: entry.size
+                });
+            }
+        });
+        
+        if (clipboardItems.length < tab.selectedPaths.size) {
+            tab.selectedPaths.forEach(path => {
+                const name = path.split('/').pop() || path;
+                if (!clipboardItems.some(item => item.path === path)) {
+                    clipboardItems.push({
+                        name: name,
+                        path: path,
+                        isDir: path.endsWith('/') || !name.includes('.'),
+                        size: null
+                    });
+                }
+            });
+        }
+        
+        state.clipboard = {
+            op: op,
+            items: clipboardItems
+        };
+        updateClipboardUI();
+        
         const infoEl = getPaneDom(state.activePane).querySelector('.status-info');
         infoEl.textContent = `${op === 'copy' ? 'Copied' : 'Cut'} ${tab.selectedPaths.size} item(s)`;
     } catch (err) {
         alert(`Error executing operation: ${err.message}`);
+    }
+}
+
+export async function triggerClearClipboard() {
+    try {
+        await executeFileOp('clear');
+        state.clipboard = {
+            op: null,
+            items: []
+        };
+        updateClipboardUI();
+        
+        const infoEl = getPaneDom(state.activePane).querySelector('.status-info');
+        if (infoEl) {
+            infoEl.textContent = 'Action aborted';
+        }
+    } catch (err) {
+        alert(`Error aborting action: ${err.message}`);
     }
 }
 
@@ -159,6 +211,13 @@ export async function triggerPaste() {
                     sources.forEach(src => t.selectedPaths.delete(src));
                 });
             });
+            
+            // Clear clipboard state on successful move
+            state.clipboard = {
+                op: null,
+                items: []
+            };
+            updateClipboardUI();
         }
         
         if (entries && entries.length > 0) {
