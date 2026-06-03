@@ -9,28 +9,37 @@ export function initTabs(autoSaveCallback) {
 }
 
 // Tabs state operations
-export function createTab(paneId, path = '', group = '', color = '') {
-    const id = 'tab_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+export function createTab(paneId, path = '', group = '', color = '', name = 'Loading...', isLazy = false, id = null) {
+    const tabId = id || ('tab_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
+    
+    let tabName = name;
+    if (!tabName || tabName === 'Loading...') {
+        tabName = path ? (path.split('/').pop() || 'Root') : 'Root';
+    }
+
     const tab = {
-        id,
-        name: 'Loading...',
+        id: tabId,
+        name: tabName,
         currentPath: path,
-        history: [],
-        historyIndex: -1,
+        history: path ? [path] : [],
+        historyIndex: path ? 0 : -1,
         selectedPaths: new Set(),
         viewMode: 'list',
         loadedEntries: [],
         hasMore: false,
         nextCursor: '',
         group,
-        color
+        color,
+        isLoaded: !isLazy
     };
     state.panes[paneId].tabs.push(tab);
-    state.panes[paneId].activeTabId = id;
-    updateMru(paneId, id);
+    state.panes[paneId].activeTabId = tabId;
+    updateMru(paneId, tabId);
     
     renderTabs(paneId);
-    navigateTo(path, true, paneId);
+    if (!isLazy) {
+        navigateTo(path, true, paneId);
+    }
     if (_autoSaveCallback) _autoSaveCallback();
 }
 
@@ -268,7 +277,12 @@ export function switchTab(paneId, tabId) {
 
     const tab = state.panes[paneId].tabs.find(t => t.id === tabId);
     if (tab) {
-        setPaneViewMode(paneId, tab.viewMode);
+        if (!tab.isLoaded) {
+            setPaneViewMode(paneId, tab.viewMode);
+            navigateTo(tab.currentPath, false, paneId);
+        } else {
+            setPaneViewMode(paneId, tab.viewMode);
+        }
     } else {
         renderFiles(paneId);
         renderBreadcrumbs(paneId);

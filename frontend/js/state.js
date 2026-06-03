@@ -7,15 +7,16 @@ export const state = {
         left: {
             activeTabId: null,
             tabs: [],
-            collapsedGroups: new Set()
+            collapsedGroups: new Set(),
+            isLoading: false
         },
         right: {
             activeTabId: null,
             tabs: [],
-            collapsedGroups: new Set()
+            collapsedGroups: new Set(),
+            isLoading: false
         }
     },
-    isLoading: false,
     clipboard: {
         op: null,
         items: []

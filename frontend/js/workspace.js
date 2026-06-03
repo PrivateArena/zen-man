@@ -20,14 +20,20 @@ async function restoreSession(session) {
     state.panes.right.tabs = [];
 
     if (session.left_tabs && session.left_tabs.length > 0) {
-        session.left_tabs.forEach(t => createTab('left', t.path, t.group, t.color));
+        session.left_tabs.forEach(t => {
+            const isLazy = t.id !== session.left_active;
+            createTab('left', t.path, t.group, t.color, t.name, isLazy, t.id);
+        });
         state.panes.left.activeTabId = session.left_active;
     } else {
         createTab('left', '');
     }
 
     if (session.right_tabs && session.right_tabs.length > 0) {
-        session.right_tabs.forEach(t => createTab('right', t.path, t.group, t.color));
+        session.right_tabs.forEach(t => {
+            const isLazy = t.id !== session.right_active;
+            createTab('right', t.path, t.group, t.color, t.name, isLazy, t.id);
+        });
         state.panes.right.activeTabId = session.right_active;
     }
 

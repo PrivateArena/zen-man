@@ -268,9 +268,9 @@ export function attachItemEventListeners(paneId) {
 export async function loadMoreFiles(paneId, loadAll) {
     const pane = state.panes[paneId];
     const tab = pane.tabs.find(t => t.id === pane.activeTabId);
-    if (!tab || state.isLoading) return;
+    if (!tab || pane.isLoading) return;
 
-    state.isLoading = true;
+    pane.isLoading = true;
     const infoEl = getPaneDom(paneId).querySelector('.status-info');
     infoEl.textContent = 'Loading more items...';
 
@@ -296,7 +296,7 @@ export async function loadMoreFiles(paneId, loadAll) {
         infoEl.textContent = `Error loading more items`;
         alert(`Could not load more items: ${err.message}`);
     } finally {
-        state.isLoading = false;
+        pane.isLoading = false;
     }
 }
 

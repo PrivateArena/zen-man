@@ -11,13 +11,13 @@ export function initNavigation(renderTabs, autoSaveCallback) {
 
 // Navigation helpers
 export async function navigateTo(path, recordHistory = true, paneId = state.activePane) {
-    if (state.isLoading) return;
-    state.isLoading = true;
-    
     const pane = state.panes[paneId];
+    if (pane.isLoading) return;
+    pane.isLoading = true;
+    
     const tab = pane.tabs.find(t => t.id === pane.activeTabId);
     if (!tab) {
-        state.isLoading = false;
+        pane.isLoading = false;
         return;
     }
 
@@ -39,6 +39,7 @@ export async function navigateTo(path, recordHistory = true, paneId = state.acti
         tab.loadedEntries = data.entries || [];
         tab.hasMore = data.has_more || false;
         tab.nextCursor = data.cursor || '';
+        tab.isLoaded = true;
 
         if (recordHistory) {
             pushPaneHistory(paneId, tab.currentPath);
@@ -60,9 +61,17 @@ export async function navigateTo(path, recordHistory = true, paneId = state.acti
     } catch (err) {
         console.error(err);
         infoEl.textContent = `Error loading directory`;
+        
+        // Ensure path and basic navigation/breadcrumbs are updated so the UI is not stuck
+        tab.currentPath = path;
+        tab.isLoaded = true; // Still mark as loaded/attempted so it behaves normally
+        renderBreadcrumbs(paneId);
+        updateNavButtons(paneId);
+        renderFiles(paneId);
+        
         alert(`Could not open directory: ${err.message}`);
     } finally {
-        state.isLoading = false;
+        pane.isLoading = false;
     }
 }
 
