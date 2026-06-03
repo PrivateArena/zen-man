@@ -42,3 +42,37 @@ export function getPaneDom(paneId) {
 export function getPaneTab(paneId, tabId) {
     return state.panes[paneId].tabs.find(t => t.id === tabId);
 }
+
+export function updateMru(paneId, tabId) {
+    const pane = state.panes[paneId];
+    if (!pane.mruTabIds) {
+        pane.mruTabIds = [];
+    }
+    pane.mruTabIds = pane.mruTabIds.filter(id => id !== tabId);
+    pane.mruTabIds.unshift(tabId);
+    
+    // Clean up non-existent tabs
+    const tabIds = new Set(pane.tabs.map(t => t.id));
+    pane.mruTabIds = pane.mruTabIds.filter(id => tabIds.has(id));
+}
+
+export function getRecentTabs(paneId) {
+    const pane = state.panes[paneId];
+    if (!pane.mruTabIds) {
+        pane.mruTabIds = [];
+    }
+    
+    // Clean up non-existent tabs
+    const tabIds = new Set(pane.tabs.map(t => t.id));
+    pane.mruTabIds = pane.mruTabIds.filter(id => tabIds.has(id));
+    
+    // Add any missing tab IDs in order they exist in tabs array
+    pane.tabs.forEach(t => {
+        if (!pane.mruTabIds.includes(t.id)) {
+            pane.mruTabIds.push(t.id);
+        }
+    });
+    
+    // Return max 5 recent tab objects
+    return pane.mruTabIds.slice(0, 5).map(id => pane.tabs.find(t => t.id === id)).filter(Boolean);
+}

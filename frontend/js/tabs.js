@@ -1,4 +1,4 @@
-import { state, getPaneDom, getPaneTab, dragTabState } from './state.js';
+import { state, getPaneDom, getPaneTab, dragTabState, updateMru } from './state.js';
 import { navigateTo, renderBreadcrumbs, updateNavButtons, setPaneViewMode } from './navigation.js';
 import { renderFiles } from './file-list.js';
 import { setActivePane } from './split-view.js';
@@ -27,6 +27,7 @@ export function createTab(paneId, path = '', group = '', color = '') {
     };
     state.panes[paneId].tabs.push(tab);
     state.panes[paneId].activeTabId = id;
+    updateMru(paneId, id);
     
     renderTabs(paneId);
     navigateTo(path, true, paneId);
@@ -261,6 +262,7 @@ export function attachTabDragListeners(paneId) {
 
 export function switchTab(paneId, tabId) {
     state.panes[paneId].activeTabId = tabId;
+    updateMru(paneId, tabId);
     setActivePane(paneId);
     renderTabs(paneId);
 
@@ -283,10 +285,15 @@ export function closeTab(paneId, tabId) {
     
     pane.tabs.splice(index, 1);
     
+    if (pane.mruTabIds) {
+        pane.mruTabIds = pane.mruTabIds.filter(id => id !== tabId);
+    }
+    
     if (pane.activeTabId === tabId) {
         if (pane.tabs.length > 0) {
             const nextActiveIndex = Math.min(index, pane.tabs.length - 1);
             pane.activeTabId = pane.tabs[nextActiveIndex].id;
+            updateMru(paneId, pane.activeTabId);
         } else {
             pane.activeTabId = null;
             createTab(paneId, '/');

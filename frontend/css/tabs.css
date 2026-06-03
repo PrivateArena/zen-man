@@ -211,3 +211,124 @@
 .tab.drag-over-right, .tab-group-label.drag-over-right {
     border-right: 2px solid var(--accent-color) !important;
 }
+
+/* Recent Tabs Overlay (Firefox-like Ctrl+Tab) */
+.recent-tabs-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+.recent-tabs-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.recent-tabs-container {
+    background: rgba(22, 24, 33, 0.9);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    width: 420px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transform: scale(0.95);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.recent-tabs-overlay.visible .recent-tabs-container {
+    transform: scale(1);
+}
+
+.recent-tabs-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+    padding-left: 4px;
+}
+
+.recent-tab-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+}
+
+.recent-tab-item.selected {
+    background: var(--bg-hover);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 10px rgba(88, 101, 242, 0.2);
+}
+
+.recent-tab-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.recent-tab-icon {
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+}
+
+.recent-tab-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+    flex-grow: 1;
+}
+
+.recent-tab-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-active);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recent-tab-path {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recent-tab-group-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.recent-tab-group-dot.group-red { background-color: #ff4a4a; }
+.recent-tab-group-dot.group-blue { background-color: #3b82f6; }
+.recent-tab-group-dot.group-green { background-color: #10b981; }
+.recent-tab-group-dot.group-yellow { background-color: #fbbf24; }
+.recent-tab-group-dot.group-purple { background-color: #8b5cf6; }
