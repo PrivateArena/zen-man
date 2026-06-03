@@ -196,7 +196,16 @@ export async function triggerPaste() {
     const tab = getActiveTab();
     if (!tab) return;
     try {
-        const data = await executeFileOp('paste', [], tab.currentPath);
+        let data = await executeFileOp('paste', [], tab.currentPath);
+        
+        if (data.status === 'conflict') {
+            const confirmMerge = confirm(`Folder(s) "${data.conflicts.join(', ')}" already exist at the destination. Do you want to merge them?`);
+            if (!confirmMerge) {
+                return;
+            }
+            data = await executeFileOp('paste', [], tab.currentPath, null, true);
+        }
+        
         const { operation, sources, entries } = data;
         
         if (operation === 'cut' && sources && sources.length > 0) {

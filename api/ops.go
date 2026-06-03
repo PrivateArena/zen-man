@@ -19,6 +19,7 @@ type OpRequest struct {
 	Sources []string `json:"sources"`
 	Dest    string   `json:"dest"`
 	Name    string   `json:"name"`
+	Merge   bool     `json:"merge"`
 }
 
 // ClipboardState represents internal clipboard contents
@@ -141,23 +142,47 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 	if len(req.Sources) > 0 {
 		paths = req.Sources
 	} else {
-		// 1. Try to read from system clipboard
 		paths, err = readFromSystemClipboard()
-		
-		// Fall back to internal state if system clipboard is empty or fails
 		clipboardMutex.Lock()
 		if err != nil || len(paths) == 0 {
 			paths = currentClipboard.Sources
 		}
 		clipboardMutex.Unlock()
 	}
-	
+
 	if len(paths) == 0 {
 		http.Error(w, `{"error": "Clipboard is empty"}`, http.StatusBadRequest)
 		return
 	}
 
-	// Check if this matches internal sources to determine operation
+	// Check for directory conflicts if merge is not confirmed
+	var conflicts []string
+	if !req.Merge {
+		for _, src := range paths {
+			name := filepath.Base(src)
+			dst := filepath.Join(req.Dest, name)
+			if src == dst {
+				continue
+			}
+			srcInfo, err := os.Stat(src)
+			if err == nil && srcInfo.IsDir() {
+				dstInfo, err := os.Stat(dst)
+				if err == nil && dstInfo.IsDir() {
+					conflicts = append(conflicts, name)
+				}
+			}
+		}
+	}
+
+	if len(conflicts) > 0 {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":    "conflict",
+			"conflicts": conflicts,
+		})
+		return
+	}
+
 	operation := "copy"
 	clipboardMutex.Lock()
 	if len(paths) == len(currentClipboard.Sources) {
@@ -176,11 +201,14 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 
 	var lastErr error
 	var pastedEntries []FileEntry
+
+	// Optimization: Skip tracking details array on high volume loads to save disk syscall iterations
+	trackEntries := len(paths) <= 100
+
 	for _, src := range paths {
 		name := filepath.Base(src)
 		dst := filepath.Join(req.Dest, name)
 
-		// Don't copy/move into itself
 		if src == dst {
 			continue
 		}
@@ -197,7 +225,7 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 			}
 		}
 
-		if lastErr == nil {
+		if lastErr == nil && trackEntries {
 			info, err := os.Stat(dst)
 			if err == nil {
 				pastedEntries = append(pastedEntries, FileEntry{
@@ -211,7 +239,6 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 		}
 	}
 
-	// Clear internal clipboard on successful cut move
 	if operation == "cut" && lastErr == nil {
 		clipboardMutex.Lock()
 		currentClipboard = ClipboardState{}
@@ -224,7 +251,6 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 		return
 	}
 
-	// Log after confirmed success — action type encodes whether files were copied or moved
 	logAction := ActionPasteCopy
 	if operation == "cut" {
 		logAction = ActionPasteMove
@@ -233,10 +259,11 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    "success",
-		"operation": operation,
-		"sources":   paths,
-		"entries":   pastedEntries,
+		"status":          "success",
+		"operation":       operation,
+		"sources":         paths,
+		"entries":         pastedEntries,
+		"reload_required": !trackEntries, // Tells UI to just clear view cache and reload directory contents safely
 	})
 }
 
@@ -347,7 +374,18 @@ func openWithDefaultApp(path string) error {
 	default:
 		return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
 	}
-	return cmd.Start()
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	// CRITICAL FIX: Spin off a lightweight background monitor thread to reap
+	// the application resource cleanly upon exit, preventing system zombie leaks.
+	go func() {
+		_ = cmd.Wait()
+	}()
+
+	return nil
 }
 
 func writeToSystemClipboard(paths []string) {
@@ -443,6 +481,11 @@ func parsePlainPaths(data string) []string {
 
 // File/Dir Copy Helpers
 func copyFile(src, dst string) error {
+	// If destination file already exists, skip it or handle as conflict
+	if _, err := os.Stat(dst); err == nil {
+		return nil // Avoid clobbering existing target data during a merge
+	}
+
 	in, err := os.Open(src)
 	if err != nil {
 		return err
@@ -500,17 +543,106 @@ func copyDir(src, dst string) error {
 }
 
 func moveItem(src, dst string) error {
-	err := os.Rename(src, dst)
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	// Uniform Safety Guard: Prevent overwriting existing files blindly on both local and cross-device environments
+	if !srcInfo.IsDir() {
+		if dstInfo, err := os.Stat(dst); err == nil && !dstInfo.IsDir() {
+			return fmt.Errorf("file already exists at destination: %s", dst)
+		}
+	}
+
+	// 1. Try the instant OS rename first (works if dst directory or file doesn't exist)
+	err = os.Rename(src, dst)
 	if err == nil {
 		return nil
 	}
 
-	// Cross-device fallback
-	err = copyItem(src, dst)
+	// 2. If it failed because the destination directory already exists, merge them instantly
+	if srcInfo.IsDir() {
+		dstStat, dstErr := os.Stat(dst)
+		if dstErr == nil && dstStat.IsDir() {
+			return mergeDirViaRename(src, dst)
+		}
+	}
+
+	// 3. True Cross-device fallback (different partitions/drives)
+	if srcInfo.IsDir() {
+		// CRITICAL FIX: Ensure target directory path shell is fully initialized on target partition first
+		if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
+			return err
+		}
+
+		entries, err := os.ReadDir(src)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			subSrc := filepath.Join(src, entry.Name())
+			subDst := filepath.Join(dst, entry.Name())
+			if err := moveItem(subSrc, subDst); err != nil {
+				return err
+			}
+		}
+
+		// Only remove the source directory shell if it is now completely empty
+		if remaining, err := os.ReadDir(src); err == nil && len(remaining) == 0 {
+			return os.Remove(src)
+		}
+		return nil
+	}
+
+	// For standard file cross-device migration
+	err = copyFile(src, dst)
 	if err != nil {
 		return err
 	}
-	return os.RemoveAll(src)
+	return os.Remove(src)
+}
+
+// mergeDirViaRename loops through immediate assets and renames them individually.
+// This preserves the instant "pointer-swap" speed for the 5,000 files inside.
+func mergeDirViaRename(srcDir, dstDir string) error {
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		return err
+	}
+
+	// Channel to collect errors from goroutines
+	errChan := make(chan error, len(entries))
+	var wg sync.WaitGroup
+
+	// Limit concurrency so we don't overwhelm OS file descriptors
+	sem := make(chan struct{}, 64)
+
+	for _, entry := range entries {
+		wg.Add(1)
+		go func(e os.DirEntry) {
+			defer wg.Done()
+			sem <- struct{}{}        // Acquire token
+			defer func() { <-sem }() // Release token
+
+			subSrc := filepath.Join(srcDir, e.Name())
+			subDst := filepath.Join(dstDir, e.Name())
+
+			if err := moveItem(subSrc, subDst); err != nil {
+				errChan <- err
+			}
+		}(entry)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	// Check if any goroutine encountered an error
+	if len(errChan) > 0 {
+		return <-errChan
+	}
+
+	return os.Remove(srcDir)
 }
 
 func copyItem(src, dst string) error {

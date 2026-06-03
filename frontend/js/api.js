@@ -1,9 +1,9 @@
 // Low-level HTTP payload post executor
-export async function executeFileOp(op, sources = [], dest = null, name = null) {
+export async function executeFileOp(op, sources = [], dest = null, name = null, merge = false) {
     const response = await fetch('/api/op', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ op, sources, dest, name })
+        body: JSON.stringify({ op, sources, dest, name, merge })
     });
     if (!response.ok) {
         const errData = await response.json();

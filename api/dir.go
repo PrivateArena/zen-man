@@ -58,6 +58,13 @@ func ResolvePath(pathStr string) (string, error) {
 	return filepath.Clean(absPath), nil
 }
 
+// Helper struct to cache file metadata for high-performance sorting
+type sortableEntry struct {
+	fs.DirEntry
+	size    int64
+	modTime time.Time
+}
+
 // HandleReadDirectory handles directory queries with cursor pagination
 func HandleReadDirectory(w http.ResponseWriter, r *http.Request) {
 	// Enable CORS for dev environments
@@ -111,16 +118,37 @@ func HandleReadDirectory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Read directory entries
-	entries, err := os.ReadDir(resolvedPath)
+	rawEntries, err := os.ReadDir(resolvedPath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "Failed to read directory: %v"}`, err), http.StatusInternalServerError)
 		return
 	}
 
-	totalCount := len(entries)
+	totalCount := len(rawEntries)
 
-	// Sort entries (name sorting requires no syscall stats)
-	sortEntries(entries, sortBy, sortOrder, resolvedPath)
+	// Wrap raw entries into our metadata-cached structures
+	entries := make([]sortableEntry, len(rawEntries))
+	for i, entry := range rawEntries {
+		var size int64
+		var modTime time.Time
+
+		// Only hit disk stats if required by the sorting parameters
+		if sortBy == "size" || sortBy == "date" {
+			if fi, err := entry.Info(); err == nil {
+				size = fi.Size()
+				modTime = fi.ModTime()
+			}
+		}
+
+		entries[i] = sortableEntry{
+			DirEntry: entry,
+			size:     size,
+			modTime:  modTime,
+		}
+	}
+
+	// Sort entries in memory using cached metadata (Blazing Fast)
+	sortEntries(entries, sortBy, sortOrder)
 
 	// Paginate
 	hasMore := false
@@ -134,20 +162,23 @@ func HandleReadDirectory(w http.ResponseWriter, r *http.Request) {
 	pageEntries := entries[startIndex:endIndex]
 	fileEntries := make([]FileEntry, 0, len(pageEntries))
 
-	// Stat ONLY the page slice entries to optimize performance
+	// Map sorted page slice down to target structure
 	for _, entry := range pageEntries {
-		var size int64 = 0
-		var modTime int64 = 0
-		var mode string = ""
+		var size int64 = entry.size
+		var modTime int64 = entry.modTime.Unix()
+		var mode string = "unknown"
 
-		info, err := entry.Info()
-		if err == nil {
-			size = info.Size()
-			modTime = info.ModTime().Unix()
-			mode = info.Mode().String()
+		// If name sorting skipped stats collection, fetch it only for this paginated window
+		if sortBy == "name" {
+			if info, err := entry.Info(); err == nil {
+				size = info.Size()
+				modTime = info.ModTime().Unix()
+				mode = info.Mode().String()
+			}
 		} else {
-			// Fallback if permission/access error on file
-			mode = "unknown"
+			if info, err := entry.Info(); err == nil {
+				mode = info.Mode().String()
+			}
 		}
 
 		fileEntries = append(fileEntries, FileEntry{
@@ -176,8 +207,8 @@ func HandleReadDirectory(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// sortEntries sorts directories first, then items by the selected criteria
-func sortEntries(entries []fs.DirEntry, sortBy string, sortOrder string, baseDir string) {
+// sortEntries sorts directories first, then items by the selected criteria using pre-cached values
+func sortEntries(entries []sortableEntry, sortBy string, sortOrder string) {
 	isAsc := sortOrder == "asc"
 
 	sort.Slice(entries, func(i, j int) bool {
@@ -186,52 +217,21 @@ func sortEntries(entries []fs.DirEntry, sortBy string, sortOrder string, baseDir
 			return entries[i].IsDir() // true (is dir) comes first
 		}
 
-		var valI, valJ interface{}
-
 		switch sortBy {
 		case "size":
-			infoI, errI := entries[i].Info()
-			infoJ, errJ := entries[j].Info()
-			var sI, sJ int64
-			if errI == nil {
-				sI = infoI.Size()
+			if isAsc {
+				return entries[i].size < entries[j].size
 			}
-			if errJ == nil {
-				sJ = infoJ.Size()
-			}
-			valI, valJ = sI, sJ
+			return entries[i].size > entries[j].size
 
 		case "date":
-			infoI, errI := entries[i].Info()
-			infoJ, errJ := entries[j].Info()
-			var tI, tJ time.Time
-			if errI == nil {
-				tI = infoI.ModTime()
+			if isAsc {
+				return entries[i].modTime.Before(entries[j].modTime)
 			}
-			if errJ == nil {
-				tJ = infoJ.ModTime()
-			}
-			valI, valJ = tI, tJ
+			return entries[i].modTime.After(entries[j].modTime)
 
 		default: // "name"
-			valI, valJ = strings.ToLower(entries[i].Name()), strings.ToLower(entries[j].Name())
-		}
-
-		// Perform actual comparison
-		if sortBy == "date" {
-			tI, tJ := valI.(time.Time), valJ.(time.Time)
-			if isAsc {
-				return tI.Before(tJ)
-			}
-			return tI.After(tJ)
-		} else if sortBy == "size" {
-			sI, sJ := valI.(int64), valJ.(int64)
-			if isAsc {
-				return sI < sJ
-			}
-			return sI > sJ
-		} else {
-			nI, nJ := valI.(string), valJ.(string)
+			nI, nJ := strings.ToLower(entries[i].Name()), strings.ToLower(entries[j].Name())
 			if isAsc {
 				return nI < nJ
 			}
