@@ -15,6 +15,26 @@ export function renderFiles(paneId = state.activePane) {
     const tab = pane.tabs.find(t => t.id === pane.activeTabId);
     if (!tab) return;
 
+    // Sync Flat View dropdown
+    const paneDom = getPaneDom(paneId);
+    const flatSelect = paneDom.querySelector('.select-flat-view');
+    if (flatSelect) {
+        flatSelect.value = tab.flatViewMode || 'none';
+    }
+
+    // Toggle flat-view layout class
+    const headerEl = paneDom.querySelector('.file-list-header');
+    const fileListEl = paneDom.querySelector('.file-list');
+    if (headerEl && fileListEl) {
+        if (tab.flatViewMode) {
+            headerEl.classList.add('flat-view');
+            fileListEl.classList.add('flat-view');
+        } else {
+            headerEl.classList.remove('flat-view');
+            fileListEl.classList.remove('flat-view');
+        }
+    }
+
     if (tab.viewMode === 'list') {
         renderFilesListVirtual(paneId);
     } else {
@@ -29,7 +49,53 @@ export function renderFilesListVirtual(paneId) {
     const fileListEl = getPaneDom(paneId).querySelector('.file-list');
     
     const rowHeight = 40;
-    const totalEntries = tab.loadedEntries.length;
+
+    let virtualRows = [];
+    if (tab.flatViewMode === 'grouped') {
+        let currentGroup = null;
+        const collapsedFileGroups = tab.collapsedFileGroups || new Set();
+        
+        tab.loadedEntries.forEach(entry => {
+            const relPath = entry.rel_path || '';
+            const lastSlash = relPath.lastIndexOf('/');
+            const parentDir = lastSlash !== -1 ? relPath.substring(0, lastSlash) : '.';
+            
+            if (parentDir !== currentGroup) {
+                currentGroup = parentDir;
+                // Count items in this group
+                const groupCount = tab.loadedEntries.filter(e => {
+                    const r = e.rel_path || '';
+                    const s = r.lastIndexOf('/');
+                    const p = s !== -1 ? r.substring(0, s) : '.';
+                    return p === currentGroup;
+                }).length;
+                
+                virtualRows.push({
+                    type: 'header',
+                    path: currentGroup,
+                    name: currentGroup === '.' ? 'Root' : currentGroup,
+                    count: groupCount
+                });
+            }
+            
+            const isCollapsed = collapsedFileGroups.has(currentGroup);
+            if (!isCollapsed) {
+                virtualRows.push({
+                    type: 'file',
+                    entry: entry
+                });
+            }
+        });
+    } else {
+        tab.loadedEntries.forEach(entry => {
+            virtualRows.push({
+                type: 'file',
+                entry: entry
+            });
+        });
+    }
+
+    const totalEntries = virtualRows.length;
 
     if (totalEntries === 0) {
         fileListEl.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted);">Directory is empty</div>`;
@@ -54,26 +120,42 @@ export function renderFilesListVirtual(paneId) {
     let html = `<div class="scroll-spacer" style="height: ${totalHeight}px; width: 1px; pointer-events: none; position: absolute; top: 0; left: 0;"></div>`;
 
     for (let i = startIndex; i <= endIndex; i++) {
-        const entry = tab.loadedEntries[i];
-        const fullPath = tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + entry.name;
-        const icon = entry.is_dir ? '📁' : '📄';
-        const iconClass = entry.is_dir ? 'icon-folder' : 'icon-file';
-        const isSelected = tab.selectedPaths.has(fullPath) ? 'selected' : '';
-        const sizeStr = entry.is_dir ? '--' : formatSize(entry.size);
-        const dateStr = formatDate(entry.mod_time);
-        
+        const row = virtualRows[i];
         const topOffset = i * rowHeight;
-
-        html += `
-            <div class="file-item ${isSelected}" data-path="${fullPath}" data-dir="${entry.is_dir}" draggable="true" style="position: absolute; top: ${topOffset}px; left: 0; right: 0; height: ${rowHeight}px; display: flex; align-items: center;">
-                <div class="file-name">
-                    <span class="${iconClass}">${icon}</span>
-                    <span>${entry.name}</span>
+        
+        if (row.type === 'header') {
+            const isCollapsed = tab.collapsedFileGroups && tab.collapsedFileGroups.has(row.path) ? 'collapsed' : '';
+            const arrow = tab.collapsedFileGroups && tab.collapsedFileGroups.has(row.path) ? '▶' : '▼';
+            html += `
+                <div class="file-group-header ${isCollapsed}" data-group-path="${row.path}" style="position: absolute; top: ${topOffset}px; left: 0; right: 0; height: ${rowHeight}px; display: flex; align-items: center;">
+                    <span class="file-group-toggle-icon">${arrow}</span>
+                    <span class="file-group-path">📁 ${row.name}</span>
+                    <span class="file-group-count">(${row.count} items)</span>
                 </div>
-                <div class="file-size">${sizeStr}</div>
-                <div class="file-date">${dateStr}</div>
-            </div>
-        `;
+            `;
+        } else {
+            const entry = row.entry;
+            const entryPathSuffix = entry.rel_path || entry.name;
+            const fullPath = tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + entryPathSuffix;
+            const icon = entry.is_dir ? '📁' : '📄';
+            const iconClass = entry.is_dir ? 'icon-folder' : 'icon-file';
+            const isSelected = tab.selectedPaths.has(fullPath) ? 'selected' : '';
+            const sizeStr = entry.is_dir ? '--' : formatSize(entry.size);
+            const dateStr = formatDate(entry.mod_time);
+            const relPathStr = entry.rel_path || '';
+
+            html += `
+                <div class="file-item ${isSelected}" data-path="${fullPath}" data-dir="${entry.is_dir}" draggable="true" style="position: absolute; top: ${topOffset}px; left: 0; right: 0; height: ${rowHeight}px; display: flex; align-items: center;">
+                    <div class="file-name">
+                        <span class="${iconClass}">${icon}</span>
+                        <span>${entry.name}</span>
+                    </div>
+                    <div class="file-relpath">${relPathStr}</div>
+                    <div class="file-size">${sizeStr}</div>
+                    <div class="file-date">${dateStr}</div>
+                </div>
+            `;
+        }
     }
 
     if (showWarning) {
@@ -146,6 +228,22 @@ export function attachItemEventListeners(paneId) {
     const paneEl = getPaneDom(paneId);
     const tab = state.panes[paneId].tabs.find(t => t.id === state.panes[paneId].activeTabId);
     if (!tab) return;
+
+    paneEl.querySelectorAll('.file-group-header').forEach(header => {
+        header.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const groupPath = header.getAttribute('data-group-path');
+            if (!tab.collapsedFileGroups) {
+                tab.collapsedFileGroups = new Set();
+            }
+            if (tab.collapsedFileGroups.has(groupPath)) {
+                tab.collapsedFileGroups.delete(groupPath);
+            } else {
+                tab.collapsedFileGroups.add(groupPath);
+            }
+            renderFiles(paneId);
+        });
+    });
 
     paneEl.querySelectorAll('.file-item').forEach(item => {
         const path = item.getAttribute('data-path');

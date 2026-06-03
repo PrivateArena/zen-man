@@ -100,6 +100,25 @@ function setupEventListeners() {
 function setupPaneListeners(paneId) {
     const paneEl = getPaneDom(paneId);
     
+    // Flat View Toggle
+    const flatSelect = paneEl.querySelector('.select-flat-view');
+    if (flatSelect) {
+        flatSelect.addEventListener('change', () => {
+            const pane = state.panes[paneId];
+            const tab = pane.tabs.find(t => t.id === pane.activeTabId);
+            if (tab) {
+                const mode = flatSelect.value === 'none' ? null : flatSelect.value;
+                tab.flatViewMode = mode;
+                if (!tab.collapsedFileGroups) {
+                    tab.collapsedFileGroups = new Set();
+                } else {
+                    tab.collapsedFileGroups.clear();
+                }
+                import('./navigation.js').then(m => m.navigateTo(tab.currentPath, false, paneId));
+            }
+        });
+    }
+    
     // View Toggles (Cycle Mode)
     paneEl.querySelector('.btn-cycle-view').addEventListener('click', () => {
         const pane = state.panes[paneId];

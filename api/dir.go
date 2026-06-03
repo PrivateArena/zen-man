@@ -20,6 +20,8 @@ type FileEntry struct {
 	Size    int64  `json:"size"`
 	ModTime int64  `json:"mod_time"` // Unix timestamp
 	Mode    string `json:"mode"`
+	RelPath string `json:"rel_path,omitempty"`
+	Depth   int    `json:"depth,omitempty"`
 }
 
 // DirResponse represents the paginated directory contents payload
@@ -63,6 +65,8 @@ type sortableEntry struct {
 	fs.DirEntry
 	size    int64
 	modTime time.Time
+	relPath string
+	depth   int
 }
 
 // HandleReadDirectory handles directory queries with cursor pagination
@@ -117,35 +121,95 @@ func HandleReadDirectory(w http.ResponseWriter, r *http.Request) {
 		sortOrder = "asc"
 	}
 
-	// Read directory entries
-	rawEntries, err := os.ReadDir(resolvedPath)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to read directory: %v"}`, err), http.StatusInternalServerError)
-		return
-	}
+	isFlat := r.URL.Query().Get("flat") == "true"
+	noFolders := r.URL.Query().Get("no_folders") == "true"
 
-	totalCount := len(rawEntries)
+	var entries []sortableEntry
 
-	// Wrap raw entries into our metadata-cached structures
-	entries := make([]sortableEntry, len(rawEntries))
-	for i, entry := range rawEntries {
-		var size int64
-		var modTime time.Time
+	if isFlat {
+		limitWalk := 10000 // Hard safety limit for flat recursive traversals
+		err = filepath.WalkDir(resolvedPath, func(path string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return nil // Skip files/folders with permission errors
+			}
+			if path == resolvedPath {
+				return nil
+			}
+			if r.Context().Err() != nil {
+				return r.Context().Err()
+			}
+			if noFolders && d.IsDir() {
+				return nil
+			}
 
-		// Only hit disk stats if required by the sorting parameters
-		if sortBy == "size" || sortBy == "date" {
-			if fi, err := entry.Info(); err == nil {
-				size = fi.Size()
-				modTime = fi.ModTime()
+			relPath, err := filepath.Rel(resolvedPath, path)
+			if err != nil {
+				return nil
+			}
+
+			var depth int
+			if relPath == "." {
+				depth = 0
+			} else {
+				depth = strings.Count(filepath.ToSlash(relPath), "/")
+			}
+
+			var size int64
+			var modTime time.Time
+			if sortBy == "size" || sortBy == "date" {
+				if fi, err := d.Info(); err == nil {
+					size = fi.Size()
+					modTime = fi.ModTime()
+				}
+			}
+
+			entries = append(entries, sortableEntry{
+				DirEntry: d,
+				size:     size,
+				modTime:  modTime,
+				relPath:  relPath,
+				depth:    depth,
+			})
+
+			if len(entries) >= limitWalk {
+				return filepath.SkipAll
+			}
+			return nil
+		})
+		if err != nil && err != r.Context().Err() {
+			http.Error(w, fmt.Sprintf(`{"error": "Failed to walk directory recursively: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Read single directory entries
+		rawEntries, err := os.ReadDir(resolvedPath)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Failed to read directory: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+
+		entries = make([]sortableEntry, len(rawEntries))
+		for i, entry := range rawEntries {
+			var size int64
+			var modTime time.Time
+
+			// Only hit disk stats if required by the sorting parameters
+			if sortBy == "size" || sortBy == "date" {
+				if fi, err := entry.Info(); err == nil {
+					size = fi.Size()
+					modTime = fi.ModTime()
+				}
+			}
+
+			entries[i] = sortableEntry{
+				DirEntry: entry,
+				size:     size,
+				modTime:  modTime,
 			}
 		}
-
-		entries[i] = sortableEntry{
-			DirEntry: entry,
-			size:     size,
-			modTime:  modTime,
-		}
 	}
+
+	totalCount := len(entries)
 
 	// Sort entries in memory using cached metadata (Blazing Fast)
 	sortEntries(entries, sortBy, sortOrder)
@@ -187,6 +251,8 @@ func HandleReadDirectory(w http.ResponseWriter, r *http.Request) {
 			Size:    size,
 			ModTime: modTime,
 			Mode:    mode,
+			RelPath: entry.relPath,
+			Depth:   entry.depth,
 		})
 	}
 

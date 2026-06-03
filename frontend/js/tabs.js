@@ -25,6 +25,8 @@ export function createTab(paneId, path = '', group = '', color = '', name = 'Loa
         historyIndex: path ? 0 : -1,
         selectedPaths: new Set(),
         viewMode: 'list',
+        flatViewMode: null, // null | 'mixed' | 'mixed-no-folders' | 'grouped'
+        collapsedFileGroups: new Set(), // Set of parent paths collapsed in grouped flat view
         loadedEntries: [],
         hasMore: false,
         nextCursor: '',
@@ -41,6 +43,7 @@ export function createTab(paneId, path = '', group = '', color = '', name = 'Loa
         navigateTo(path, true, paneId);
     }
     if (_autoSaveCallback) _autoSaveCallback();
+    return tab;
 }
 
 export function renderTabs(paneId) {

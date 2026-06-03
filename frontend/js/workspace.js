@@ -5,7 +5,7 @@ import { setSplitView, setQuadView } from './split-view.js';
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
 function buildSessionPayload() {
-    const mapTab = t => ({ id: t.id, path: t.currentPath, name: t.name, group: t.group, color: t.color });
+    const mapTab = t => ({ id: t.id, path: t.currentPath, name: t.name, group: t.group, color: t.color, flatViewMode: t.flatViewMode });
     return {
         left_tabs: state.panes.left.tabs.map(mapTab),
         left_active: state.panes.left.activeTabId,
@@ -30,7 +30,8 @@ async function restoreSession(session) {
     if (session.left_tabs && session.left_tabs.length > 0) {
         session.left_tabs.forEach(t => {
             const isLazy = t.id !== session.left_active;
-            createTab('left', t.path, t.group, t.color, t.name, isLazy, t.id);
+            const newTab = createTab('left', t.path, t.group, t.color, t.name, isLazy, t.id);
+            if (newTab) newTab.flatViewMode = t.flatViewMode || null;
         });
         state.panes.left.activeTabId = session.left_active;
     } else {
@@ -41,7 +42,8 @@ async function restoreSession(session) {
     if (session.right_tabs && session.right_tabs.length > 0) {
         session.right_tabs.forEach(t => {
             const isLazy = t.id !== session.right_active;
-            createTab('right', t.path, t.group, t.color, t.name, isLazy, t.id);
+            const newTab = createTab('right', t.path, t.group, t.color, t.name, isLazy, t.id);
+            if (newTab) newTab.flatViewMode = t.flatViewMode || null;
         });
         state.panes.right.activeTabId = session.right_active;
     }
@@ -50,7 +52,8 @@ async function restoreSession(session) {
     if (session.left_bottom_tabs && session.left_bottom_tabs.length > 0) {
         session.left_bottom_tabs.forEach(t => {
             const isLazy = t.id !== session.left_bottom_active;
-            createTab('left-bottom', t.path, t.group, t.color, t.name, isLazy, t.id);
+            const newTab = createTab('left-bottom', t.path, t.group, t.color, t.name, isLazy, t.id);
+            if (newTab) newTab.flatViewMode = t.flatViewMode || null;
         });
         state.panes['left-bottom'].activeTabId = session.left_bottom_active;
     }
@@ -59,7 +62,8 @@ async function restoreSession(session) {
     if (session.right_bottom_tabs && session.right_bottom_tabs.length > 0) {
         session.right_bottom_tabs.forEach(t => {
             const isLazy = t.id !== session.right_bottom_active;
-            createTab('right-bottom', t.path, t.group, t.color, t.name, isLazy, t.id);
+            const newTab = createTab('right-bottom', t.path, t.group, t.color, t.name, isLazy, t.id);
+            if (newTab) newTab.flatViewMode = t.flatViewMode || null;
         });
         state.panes['right-bottom'].activeTabId = session.right_bottom_active;
     }

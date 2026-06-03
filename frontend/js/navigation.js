@@ -27,7 +27,16 @@ export async function navigateTo(path, recordHistory = true, paneId = state.acti
     updateSelectionUI(paneId);
 
     try {
-        const response = await fetch(`/api/dir?path=${encodeURIComponent(path)}`);
+        let url = `/api/dir?path=${encodeURIComponent(path)}`;
+        if (tab.flatViewMode === 'mixed') {
+            url += '&flat=true';
+        } else if (tab.flatViewMode === 'mixed-no-folders') {
+            url += '&flat=true&no_folders=true';
+        } else if (tab.flatViewMode === 'grouped') {
+            url += '&flat=true';
+        }
+        
+        const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`Failed to load: ${response.statusText}`);
         }
