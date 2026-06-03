@@ -6,6 +6,7 @@ let editingActionId = null;
 // Mock variables for live command preview
 const mockPreviewData = {
     dir: '/home/user/projects/zen-man',
+    target_dir: '/home/user/projects/zen-man/frontend',
     file: '/home/user/projects/zen-man/frontend/index.html',
     files: `"/home/user/projects/zen-man/frontend/index.html" "/home/user/projects/zen-man/README.md"`,
     name: 'index.html',
@@ -92,6 +93,7 @@ function updateCommandPreview() {
 
     let resolved = command;
     resolved = resolved.replaceAll('{dir}', mockPreviewData.dir);
+    resolved = resolved.replaceAll('{target_dir}', mockPreviewData.target_dir);
     resolved = resolved.replaceAll('{file}', mockPreviewData.file);
     resolved = resolved.replaceAll('{files}', mockPreviewData.files);
     resolved = resolved.replaceAll('{name}', mockPreviewData.name);
@@ -99,6 +101,12 @@ function updateCommandPreview() {
     resolved = resolved.replaceAll('{parent}', mockPreviewData.parent);
 
     previewEl.textContent = resolved;
+}
+
+// Normalize legacy single-tag role values to pipe-separated format
+function normalizeRole(role) {
+    if (!role || role === 'both') return 'files|dirs';
+    return role;
 }
 
 function showActionEditor(action = null) {
@@ -112,12 +120,12 @@ function showActionEditor(action = null) {
         document.getElementById('action-command').value = action.command;
         document.getElementById('action-patterns').value = action.patterns || '';
         document.getElementById('action-show-output').checked = action.show_output;
-        
-        // Select appropriate role radio button
-        const radios = document.getElementsByName('action-role');
-        radios.forEach(radio => {
-            radio.checked = radio.value === action.role;
-        });
+
+        // Parse stored pipe-separated role into 3 checkboxes
+        const roles = new Set(normalizeRole(action.role).split('|'));
+        document.getElementById('role-files').checked = roles.has('files');
+        document.getElementById('role-dirs').checked = roles.has('dirs');
+        document.getElementById('role-background').checked = roles.has('background');
     } else {
         editingActionId = null;
         document.getElementById('action-name').value = '';
@@ -125,12 +133,11 @@ function showActionEditor(action = null) {
         document.getElementById('action-command').value = '';
         document.getElementById('action-patterns').value = '';
         document.getElementById('action-show-output').checked = false;
-        
-        // Default role is "both"
-        const radios = document.getElementsByName('action-role');
-        radios.forEach(radio => {
-            radio.checked = radio.value === 'both';
-        });
+
+        // Default: Files + Folders checked, Background unchecked
+        document.getElementById('role-files').checked = true;
+        document.getElementById('role-dirs').checked = true;
+        document.getElementById('role-background').checked = false;
     }
 
     editor.style.display = 'flex';
@@ -151,19 +158,23 @@ async function saveAction() {
     const patterns = document.getElementById('action-patterns').value.trim();
     const show_output = document.getElementById('action-show-output').checked;
 
-    let role = 'both';
-    const radios = document.getElementsByName('action-role');
-    for (const r of radios) {
-        if (r.checked) {
-            role = r.value;
-            break;
-        }
-    }
+    // Collect checked context targets into pipe-separated role string
+    const roleParts = [];
+    if (document.getElementById('role-files').checked) roleParts.push('files');
+    if (document.getElementById('role-dirs').checked) roleParts.push('dirs');
+    if (document.getElementById('role-background').checked) roleParts.push('background');
 
     if (!name || !command) {
         alert('Name and Command fields are required.');
         return;
     }
+
+    if (roleParts.length === 0) {
+        alert('Select at least one "Applies to" option.');
+        return;
+    }
+
+    const role = roleParts.join('|');
 
     const actionData = {
         name,
@@ -327,16 +338,18 @@ export function getActionsForContext(isDir, isItem, targetPath) {
     const fileName = targetPath ? targetPath.split('/').pop() : '';
     
     const matched = customActions.filter(a => {
-        // 1. Role filter
+        // 1. Role filter — role is pipe-separated e.g. "files|dirs" or "files|background"
+        const roles = new Set(normalizeRole(a.role).split('|'));
+
         if (!isItem) {
-            // Background context (empty pane area)
-            return a.role === 'background';
+            // Background context: right-click on empty pane area
+            return roles.has('background');
         }
-        
+
         if (isDir) {
-            if (a.role !== 'dirs' && a.role !== 'both') return false;
+            if (!roles.has('dirs')) return false;
         } else {
-            if (a.role !== 'files' && a.role !== 'both') return false;
+            if (!roles.has('files')) return false;
         }
 
         // 2. Pattern filter (only applies if we clicked an item)

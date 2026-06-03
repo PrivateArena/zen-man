@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -212,7 +213,21 @@ func HandleActionExec(w http.ResponseWriter, r *http.Request) {
 	}
 	namesStr := strings.Join(quotedNames, " ")
 
+	// {target_dir}: smart directory — the folder itself if a dir was clicked,
+	// the file's parent if a file was clicked, or the current pane dir on background.
+	var targetDir string
+	if firstPath != "" {
+		if info, err := os.Stat(firstPath); err == nil && info.IsDir() {
+			targetDir = firstPath
+		} else {
+			targetDir = parentDir
+		}
+	} else {
+		targetDir = req.Dir
+	}
+
 	cmdStr = strings.ReplaceAll(cmdStr, "{dir}", req.Dir)
+	cmdStr = strings.ReplaceAll(cmdStr, "{target_dir}", targetDir)
 	cmdStr = strings.ReplaceAll(cmdStr, "{file}", firstPath)
 	cmdStr = strings.ReplaceAll(cmdStr, "{files}", filesStr)
 	cmdStr = strings.ReplaceAll(cmdStr, "{name}", firstName)

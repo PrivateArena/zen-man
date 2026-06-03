@@ -119,24 +119,45 @@
     min-height: 32px;
 }
 
-/* Radio button selections for roles */
+/* Toggle chip selections for roles */
 .action-roles {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 6px;
 }
 
-.role-option {
-    display: flex;
+.role-chip {
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.85rem;
-    color: var(--text-main);
+    gap: 4px;
+    padding: 5px 11px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    font-size: 0.8rem;
+    color: var(--text-muted);
     cursor: pointer;
+    user-select: none;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
 }
 
-.role-option input {
-    cursor: pointer;
+.role-chip:hover {
+    border-color: var(--accent-color);
+    color: var(--text-main);
+}
+
+.role-chip:has(input:checked) {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #fff;
+}
+
+.role-chip:active {
+    transform: scale(0.95);
+}
+
+.role-chip input[type="checkbox"] {
+    display: none;
 }
 
 /* Action list reorder styles and list structure */

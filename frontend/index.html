@@ -336,6 +336,7 @@
                     <label for="action-command">Command</label>
                     <input type="text" id="action-command" placeholder="Click tokens below...">
                     <div class="action-variables">
+                        <span class="var-chip" data-var="{target_dir}" title="Smart dir: clicked folder, file's parent, or current dir">{target_dir}</span>
                         <span class="var-chip" data-var="{file}">{file}</span>
                         <span class="var-chip" data-var="{files}">{files}</span>
                         <span class="var-chip" data-var="{dir}">{dir}</span>
@@ -351,10 +352,15 @@
                 <div class="action-editor-field">
                     <label>Applies to</label>
                     <div class="action-roles">
-                        <label class="role-option"><input type="radio" name="action-role" value="both" checked> 📄📁 Files & Folders</label>
-                        <label class="role-option"><input type="radio" name="action-role" value="files"> 📄 Files Only</label>
-                        <label class="role-option"><input type="radio" name="action-role" value="dirs"> 📁 Folders Only</label>
-                        <label class="role-option"><input type="radio" name="action-role" value="background"> 🖥️ Background</label>
+                        <label class="role-option role-chip" title="Show on right-click of files">
+                            <input type="checkbox" id="role-files" checked> 📄 Files
+                        </label>
+                        <label class="role-option role-chip" title="Show on right-click of folders">
+                            <input type="checkbox" id="role-dirs" checked> 📁 Folders
+                        </label>
+                        <label class="role-option role-chip" title="Show on right-click of empty pane area">
+                            <input type="checkbox" id="role-background"> 🖥️ Background
+                        </label>
                     </div>
                 </div>
                 <div class="action-editor-field">
