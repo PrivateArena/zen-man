@@ -1,6 +1,7 @@
 import { state, getPaneDom, getActiveTab } from './state.js';
 import { formatSize, formatDate } from './utils.js';
 import { executeFileOp, openFile } from './api.js';
+import { getIsBatchRenameActive } from './batch-rename.js';
 
 let navigateToCallback = null;
 
@@ -9,6 +10,7 @@ export function initFileList(navigateTo) {
 }
 
 export function renderFiles(paneId = state.activePane) {
+    if (getIsBatchRenameActive()) return;
     const pane = state.panes[paneId];
     const tab = pane.tabs.find(t => t.id === pane.activeTabId);
     if (!tab) return;
@@ -21,6 +23,7 @@ export function renderFiles(paneId = state.activePane) {
 }
 
 export function renderFilesListVirtual(paneId) {
+    if (getIsBatchRenameActive()) return;
     const pane = state.panes[paneId];
     const tab = pane.tabs.find(t => t.id === pane.activeTabId);
     const fileListEl = getPaneDom(paneId).querySelector('.file-list');
@@ -95,6 +98,7 @@ export function renderFilesListVirtual(paneId) {
 }
 
 export function renderFilesGrid(paneId) {
+    if (getIsBatchRenameActive()) return;
     const pane = state.panes[paneId];
     const tab = pane.tabs.find(t => t.id === pane.activeTabId);
     const fileListEl = getPaneDom(paneId).querySelector('.file-list');

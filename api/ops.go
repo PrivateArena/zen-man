@@ -292,38 +292,85 @@ func handleDelete(w http.ResponseWriter, sources []string) {
 }
 
 func handleRename(w http.ResponseWriter, sources []string, newName string) {
-	if len(sources) != 1 || newName == "" {
+	if len(sources) == 0 || newName == "" {
 		http.Error(w, `{"error": "Invalid rename arguments"}`, http.StatusBadRequest)
 		return
 	}
-	src := sources[0]
-	dir := filepath.Dir(src)
-	dst := filepath.Join(dir, newName)
 
-	if err := os.Rename(src, dst); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Rename failed: %v"}`, err), http.StatusInternalServerError)
+	if len(sources) == 1 {
+		src := sources[0]
+		dir := filepath.Dir(src)
+		dst := filepath.Join(dir, newName)
+
+		if err := os.Rename(src, dst); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Rename failed: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+
+		GetLog().Append(ActionRename, []string{src}, "", newName)
+
+		info, err := os.Stat(dst)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Failed to stat renamed item: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+		entry := FileEntry{
+			Name:    info.Name(),
+			IsDir:   info.IsDir(),
+			Size:    info.Size(),
+			ModTime: info.ModTime().Unix(),
+			Mode:    info.Mode().String(),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "success",
+			"entry":  entry,
+		})
 		return
 	}
 
-	// Log: source = original path, name = the new name applied
-	GetLog().Append(ActionRename, []string{src}, "", newName)
-
-	info, err := os.Stat(dst)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to stat renamed item: %v"}`, err), http.StatusInternalServerError)
+	// Batch rename path
+	var parsedNames []string
+	if err := json.Unmarshal([]byte(newName), &parsedNames); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Invalid JSON names array for batch rename: %v"}`, err), http.StatusBadRequest)
 		return
 	}
-	entry := FileEntry{
-		Name:    info.Name(),
-		IsDir:   info.IsDir(),
-		Size:    info.Size(),
-		ModTime: info.ModTime().Unix(),
-		Mode:    info.Mode().String(),
+
+	if len(parsedNames) != len(sources) {
+		http.Error(w, `{"error": "Mismatch between sources count and new names count"}`, http.StatusBadRequest)
+		return
 	}
+
+	var renamedSources []string
+	var renamedNewNames []string
+
+	for i, src := range sources {
+		name := parsedNames[i]
+		if name == "" {
+			continue // skip empty name renames
+		}
+		dir := filepath.Dir(src)
+		dst := filepath.Join(dir, name)
+
+		if err := os.Rename(src, dst); err != nil {
+			if len(renamedSources) > 0 {
+				serializedSuccess, _ := json.Marshal(renamedNewNames)
+				GetLog().Append(ActionRename, renamedSources, "", string(serializedSuccess))
+			}
+			http.Error(w, fmt.Sprintf(`{"error": "Rename failed at %s -> %s: %v"}`, src, dst, err), http.StatusInternalServerError)
+			return
+		}
+
+		renamedSources = append(renamedSources, src)
+		renamedNewNames = append(renamedNewNames, name)
+	}
+
+	serializedResult, _ := json.Marshal(renamedNewNames)
+	GetLog().Append(ActionRename, renamedSources, "", string(serializedResult))
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status": "success",
-		"entry":  entry,
 	})
 }
 

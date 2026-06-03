@@ -1,9 +1,11 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // RevertRecord undoes the filesystem effect of a completed action.
@@ -78,10 +80,32 @@ func revertPasteMove(rec ActionRecord) error {
 // revertRename renames the file back from its new name to the original name.
 // rec.Sources[0] is the original absolute path; rec.Name is the new name.
 func revertRename(rec ActionRecord) error {
-	if len(rec.Sources) != 1 || rec.Name == "" {
+	if len(rec.Sources) == 0 || rec.Name == "" {
 		return fmt.Errorf("rename record malformed: sources=%d name=%q", len(rec.Sources), rec.Name)
 	}
 
+	// If it's a batch rename, rec.Name is a JSON array of names
+	if len(rec.Sources) > 1 || (strings.HasPrefix(rec.Name, "[") && strings.HasSuffix(rec.Name, "]")) {
+		var parsedNames []string
+		if err := json.Unmarshal([]byte(rec.Name), &parsedNames); err == nil && len(parsedNames) == len(rec.Sources) {
+			// Revert each rename in the batch
+			var lastErr error
+			for i := len(rec.Sources) - 1; i >= 0; i-- { // revert in reverse order to handle dependencies cleanly
+				originalPath := rec.Sources[i]
+				dir := filepath.Dir(originalPath)
+				currentPath := filepath.Join(dir, parsedNames[i])
+
+				if _, err := os.Stat(currentPath); err == nil {
+					if renameErr := os.Rename(currentPath, originalPath); renameErr != nil {
+						lastErr = renameErr
+					}
+				}
+			}
+			return lastErr
+		}
+	}
+
+	// Single rename fallback
 	originalPath := rec.Sources[0]
 	dir := filepath.Dir(originalPath)
 	currentPath := filepath.Join(dir, rec.Name) // path after the rename was applied

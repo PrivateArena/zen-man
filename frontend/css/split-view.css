@@ -25,6 +25,13 @@
     background-color: var(--border-color);
 }
 
+.panes-container.quad-pane {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 1px;
+    background-color: var(--border-color);
+}
+
 .pane {
     display: flex;
     flex-direction: column;

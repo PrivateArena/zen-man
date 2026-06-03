@@ -346,6 +346,45 @@ func TestRevertRename(t *testing.T) {
 	}
 }
 
+func TestRevertBatchRename(t *testing.T) {
+	dir := t.TempDir()
+	orig1 := filepath.Join(dir, "orig1.txt")
+	orig2 := filepath.Join(dir, "orig2.txt")
+	ren1 := filepath.Join(dir, "ren1.txt")
+	ren2 := filepath.Join(dir, "ren2.txt")
+
+	// Simulate: orig1.txt and orig2.txt were renamed → ren1.txt and ren2.txt
+	if err := os.WriteFile(ren1, []byte("data1"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(ren2, []byte("data2"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := ActionRecord{
+		Action:  ActionRename,
+		Sources: []string{orig1, orig2},
+		Name:    `["ren1.txt","ren2.txt"]`,
+	}
+
+	if err := RevertRecord(rec); err != nil {
+		t.Fatalf("RevertRecord batch rename: %v", err)
+	}
+
+	if _, err := os.Stat(ren1); !os.IsNotExist(err) {
+		t.Error("ren1 should be gone")
+	}
+	if _, err := os.Stat(ren2); !os.IsNotExist(err) {
+		t.Error("ren2 should be gone")
+	}
+	if _, err := os.Stat(orig1); err != nil {
+		t.Error("orig1 should be restored")
+	}
+	if _, err := os.Stat(orig2); err != nil {
+		t.Error("orig2 should be restored")
+	}
+}
+
 func TestRevertMkdirEmpty(t *testing.T) {
 	parent := t.TempDir()
 	newDir := filepath.Join(parent, "emptydir")

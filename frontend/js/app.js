@@ -1,7 +1,7 @@
 // Zen-Man Frontend Bootstrapper (ES Module Entrypoint)
 
 import { state, getPaneDom } from './state.js';
-import { initSplitView, setSplitView, setActivePane } from './split-view.js';
+import { initSplitView, setSplitView, setQuadView, setActivePane } from './split-view.js';
 import { 
     initSidebar, 
     loadSidebarPlaces, 
@@ -62,10 +62,15 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupEventListeners() {
     setupPaneListeners('left');
     setupPaneListeners('right');
+    setupPaneListeners('left-bottom');
+    setupPaneListeners('right-bottom');
 
     // Global toggle split view
-    document.getElementById('split-toggle-btn').addEventListener('click', () => {
+    document.getElementById('split-2-btn').addEventListener('click', () => {
         setSplitView(!state.isSplit);
+    });
+    document.getElementById('split-4-btn').addEventListener('click', () => {
+        setQuadView(!state.isQuad);
     });
 
     // Bookmark actions
@@ -79,8 +84,9 @@ function setupEventListeners() {
     document.getElementById('workspace-select').addEventListener('change', handleWorkspaceChange);
 
     // Right click context menu routing
-    document.getElementById('pane-left').addEventListener('contextmenu', (e) => handlePaneContextMenu(e, 'left'));
-    document.getElementById('pane-right').addEventListener('contextmenu', (e) => handlePaneContextMenu(e, 'right'));
+    Object.keys(state.panes).forEach(paneId => {
+        document.getElementById(`pane-${paneId}`).addEventListener('contextmenu', (e) => handlePaneContextMenu(e, paneId));
+    });
 
     // Hide context menu on click anywhere — use capture so file-list's stopPropagation doesn't block it
     document.addEventListener('click', () => {

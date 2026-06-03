@@ -54,9 +54,69 @@
                 </div>
                 <div class="global-actions">
                     <button id="action-log-toggle" class="btn-global" title="Action History (H)" aria-label="Toggle action history panel">History</button>
-                    <button id="split-toggle-btn" class="btn-global btn-accent" title="Toggle Split Dual View (F3)">Split View (F3)</button>
+                    <button id="split-2-btn" class="btn-global" title="Toggle Split Dual View (F3)">◫ 2-Pane (F3)</button>
+                    <button id="split-4-btn" class="btn-global" title="Toggle Quad Split View (F4)">田 4-Pane (F4)</button>
                 </div>
             </header>
+
+            <!-- Batch Rename Panel -->
+            <div id="batch-rename-panel" class="batch-rename-panel" style="display: none;">
+                <div class="batch-rename-header">
+                    <h3>Batch Rename Tool</h3>
+                    <div class="batch-rename-info" id="batch-rename-count-info">0 files loaded</div>
+                </div>
+                <div class="batch-rename-body">
+                    <div class="batch-rename-fields">
+                        <div class="batch-rename-field">
+                            <label for="batch-rename-find">Find</label>
+                            <input type="text" id="batch-rename-find" placeholder="Text or regex pattern to search for..." autocomplete="off">
+                        </div>
+                        <div class="batch-rename-field">
+                            <label for="batch-rename-replace">Replace</label>
+                            <input type="text" id="batch-rename-replace" placeholder="Replacement (use [n] or [n:digits] for counter, e.g. photo_[n:3])..." autocomplete="off">
+                        </div>
+                    </div>
+                    
+                    <div class="batch-rename-controls">
+                        <div class="batch-rename-options">
+                            <label class="checkbox-option">
+                                <input type="checkbox" id="batch-rename-regex">
+                                <span>Use Regex</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" id="batch-rename-case">
+                                <span>Case Insensitive</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" id="batch-rename-ext">
+                                <span>Rename Extension Too</span>
+                            </label>
+                        </div>
+
+                        <div class="batch-rename-counter-group">
+                            <div class="batch-rename-field counter-field">
+                                <label for="batch-rename-counter-start">Start Counter</label>
+                                <input type="number" id="batch-rename-counter-start" value="1" min="0">
+                            </div>
+                            <div class="batch-rename-field counter-field">
+                                <label for="batch-rename-counter-step">Step</label>
+                                <input type="number" id="batch-rename-counter-step" value="1" min="1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="batch-rename-footer">
+                    <div id="batch-rename-warning" class="batch-rename-warning" style="display: none;">
+                        <span class="warning-icon">⚠️</span>
+                        <span id="batch-rename-warning-text" class="warning-text">Conflict detected</span>
+                    </div>
+                    <div class="batch-rename-actions">
+                        <button id="batch-rename-cancel-btn" class="btn-global">Cancel</button>
+                        <button id="batch-rename-apply-btn" class="btn-global btn-accent">Apply Rename</button>
+                    </div>
+                </div>
+            </div>
 
             <!-- Dual Pane Container -->
             <div id="panes-container" class="panes-container single-pane">
@@ -103,6 +163,86 @@
 
                 <!-- Right Pane -->
                 <div id="pane-right" class="pane" tabindex="0" style="display: none;">
+                    <header class="toolbar">
+                        <div class="toolbar-nav-buttons">
+                            <button class="nav-back" title="Go Back" disabled>&larr;</button>
+                            <button class="nav-forward" title="Go Forward" disabled>&rarr;</button>
+                            <button class="nav-up" title="Go Up">&uarr;</button>
+                        </div>
+                        <div class="breadcrumb-container">
+                            <input type="text" class="address-bar" value="/" style="display: none;">
+                            <div class="breadcrumbs"></div>
+                        </div>
+                        <div class="toolbar-views">
+                            <button class="btn-cycle-view" title="Switch to Grid View">&#9776;</button>
+                        </div>
+                    </header>
+
+                    <div class="tabs-bar-container">
+                        <div class="tabs-bar"></div>
+                        <button class="btn-new-tab" title="New Tab">+</button>
+                    </div>
+
+                    <div class="file-view-container">
+                        <div class="file-list-header">
+                            <div class="col-name" data-sort="name">Name</div>
+                            <div class="col-size" data-sort="size">Size</div>
+                            <div class="col-date" data-sort="date">Modified</div>
+                        </div>
+                        <div class="file-list list-view" tabindex="0"></div>
+                    </div>
+
+                    <footer class="status-bar">
+                        <div class="status-left">
+                            <span class="status-selection"><span class="status-selection-text">0 items selected</span></span>
+                            <span class="status-action" style="display: none;"></span>
+                        </div>
+                        <span class="status-info">Loading...</span>
+                    </footer>
+                </div>
+
+                <!-- Left Bottom Pane -->
+                <div id="pane-left-bottom" class="pane" tabindex="0" style="display: none;">
+                    <header class="toolbar">
+                        <div class="toolbar-nav-buttons">
+                            <button class="nav-back" title="Go Back" disabled>&larr;</button>
+                            <button class="nav-forward" title="Go Forward" disabled>&rarr;</button>
+                            <button class="nav-up" title="Go Up">&uarr;</button>
+                        </div>
+                        <div class="breadcrumb-container">
+                            <input type="text" class="address-bar" value="/" style="display: none;">
+                            <div class="breadcrumbs"></div>
+                        </div>
+                        <div class="toolbar-views">
+                            <button class="btn-cycle-view" title="Switch to Grid View">&#9776;</button>
+                        </div>
+                    </header>
+
+                    <div class="tabs-bar-container">
+                        <div class="tabs-bar"></div>
+                        <button class="btn-new-tab" title="New Tab">+</button>
+                    </div>
+
+                    <div class="file-view-container">
+                        <div class="file-list-header">
+                            <div class="col-name" data-sort="name">Name</div>
+                            <div class="col-size" data-sort="size">Size</div>
+                            <div class="col-date" data-sort="date">Modified</div>
+                        </div>
+                        <div class="file-list list-view" tabindex="0"></div>
+                    </div>
+
+                    <footer class="status-bar">
+                        <div class="status-left">
+                            <span class="status-selection"><span class="status-selection-text">0 items selected</span></span>
+                            <span class="status-action" style="display: none;"></span>
+                        </div>
+                        <span class="status-info">Loading...</span>
+                    </footer>
+                </div>
+
+                <!-- Right Bottom Pane -->
+                <div id="pane-right-bottom" class="pane" tabindex="0" style="display: none;">
                     <header class="toolbar">
                         <div class="toolbar-nav-buttons">
                             <button class="nav-back" title="Go Back" disabled>&larr;</button>

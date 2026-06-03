@@ -1,0 +1,212 @@
+/* Glassmorphic Batch Rename Panel */
+.batch-rename-panel {
+    background: rgba(30, 30, 40, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 2px solid var(--accent-color, #6c5ce7);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 10px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 100;
+    transition: all 0.3s ease;
+}
+
+.batch-rename-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.batch-rename-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text-main, #ffffff);
+}
+
+.batch-rename-info {
+    font-size: 0.85rem;
+    color: var(--text-muted, #a0a0a0);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.batch-rename-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.batch-rename-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 768px) {
+    .batch-rename-fields {
+        grid-template-columns: 1fr;
+    }
+}
+
+.batch-rename-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.batch-rename-field label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted, #a0a0a0);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.batch-rename-field input {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text-main, #ffffff);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.batch-rename-field input:focus {
+    border-color: var(--accent-color, #6c5ce7);
+    box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.2);
+}
+
+.batch-rename-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.batch-rename-options {
+    display: flex;
+    gap: 16px;
+}
+
+.checkbox-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-main, #ffffff);
+    user-select: none;
+}
+
+.checkbox-option input[type="checkbox"] {
+    accent-color: var(--accent-color, #6c5ce7);
+    cursor: pointer;
+}
+
+.batch-rename-counter-group {
+    display: flex;
+    gap: 12px;
+}
+
+.counter-field input[type="number"] {
+    width: 80px;
+    text-align: center;
+}
+
+.batch-rename-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 12px;
+    margin-top: 4px;
+}
+
+.batch-rename-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(235, 94, 85, 0.15);
+    border: 1px solid rgba(235, 94, 85, 0.3);
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: #eb5e55;
+    font-size: 0.85rem;
+}
+
+.batch-rename-actions {
+    display: flex;
+    gap: 10px;
+    margin-left: auto;
+}
+
+/* File list item statuses for batch rename modes */
+.rename-status-original {
+    opacity: 0.85;
+}
+
+.rename-status-success {
+    color: #2ecc71 !important;
+    border-left: 3px solid #2ecc71 !important;
+}
+
+.rename-status-success .file-name span {
+    color: #2ecc71 !important;
+}
+
+.rename-status-unchanged {
+    color: var(--text-muted, #888888) !important;
+}
+
+.rename-status-conflict {
+    color: #eb5e55 !important;
+    background: rgba(235, 94, 85, 0.05) !important;
+    border-left: 3px solid #eb5e55 !important;
+    animation: pulse-red 2.5s infinite;
+}
+
+.rename-status-conflict .file-name span {
+    color: #eb5e55 !important;
+    font-weight: 500;
+}
+
+@keyframes pulse-red {
+    0% { background: rgba(235, 94, 85, 0.05); }
+    50% { background: rgba(235, 94, 85, 0.12); }
+    100% { background: rgba(235, 94, 85, 0.05); }
+}
+
+/* Status pill indicator for preview list */
+.rename-preview-badge {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: auto;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge-success {
+    background: rgba(46, 204, 113, 0.15);
+    color: #2ecc71;
+}
+
+.badge-conflict {
+    background: rgba(235, 94, 85, 0.15);
+    color: #eb5e55;
+}
+
+.badge-unchanged {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted, #888888);
+}

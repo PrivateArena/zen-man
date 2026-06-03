@@ -266,7 +266,12 @@ export async function triggerPaste() {
 
 export async function triggerRename() {
     const tab = getActiveTab();
-    if (!tab || tab.selectedPaths.size !== 1) return;
+    if (!tab || tab.selectedPaths.size === 0) return;
+    
+    if (tab.selectedPaths.size > 1) {
+        import('./batch-rename.js').then(m => m.startBatchRename(state.activePane));
+        return;
+    }
     const oldPath = [...tab.selectedPaths][0];
     const oldName = oldPath.split('/').pop();
     const newName = prompt('Enter new name:', oldName);

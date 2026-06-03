@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { createTab, switchTab } from './tabs.js';
-import { setSplitView } from './split-view.js';
+import { setSplitView, setQuadView } from './split-view.js';
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
@@ -11,14 +11,22 @@ function buildSessionPayload() {
         left_active: state.panes.left.activeTabId,
         right_tabs: state.panes.right.tabs.map(mapTab),
         right_active: state.panes.right.activeTabId,
-        split: state.isSplit
+        left_bottom_tabs: state.panes['left-bottom'].tabs.map(mapTab),
+        left_bottom_active: state.panes['left-bottom'].activeTabId,
+        right_bottom_tabs: state.panes['right-bottom'].tabs.map(mapTab),
+        right_bottom_active: state.panes['right-bottom'].activeTabId,
+        split: state.isSplit,
+        quad: state.isQuad
     };
 }
 
 async function restoreSession(session) {
     state.panes.left.tabs = [];
     state.panes.right.tabs = [];
+    state.panes['left-bottom'].tabs = [];
+    state.panes['right-bottom'].tabs = [];
 
+    // Left pane
     if (session.left_tabs && session.left_tabs.length > 0) {
         session.left_tabs.forEach(t => {
             const isLazy = t.id !== session.left_active;
@@ -29,6 +37,7 @@ async function restoreSession(session) {
         createTab('left', '');
     }
 
+    // Right pane
     if (session.right_tabs && session.right_tabs.length > 0) {
         session.right_tabs.forEach(t => {
             const isLazy = t.id !== session.right_active;
@@ -37,12 +46,49 @@ async function restoreSession(session) {
         state.panes.right.activeTabId = session.right_active;
     }
 
-    state.isSplit = session.split;
-    setSplitView(state.isSplit);
+    // Left bottom pane
+    if (session.left_bottom_tabs && session.left_bottom_tabs.length > 0) {
+        session.left_bottom_tabs.forEach(t => {
+            const isLazy = t.id !== session.left_bottom_active;
+            createTab('left-bottom', t.path, t.group, t.color, t.name, isLazy, t.id);
+        });
+        state.panes['left-bottom'].activeTabId = session.left_bottom_active;
+    }
 
+    // Right bottom pane
+    if (session.right_bottom_tabs && session.right_bottom_tabs.length > 0) {
+        session.right_bottom_tabs.forEach(t => {
+            const isLazy = t.id !== session.right_bottom_active;
+            createTab('right-bottom', t.path, t.group, t.color, t.name, isLazy, t.id);
+        });
+        state.panes['right-bottom'].activeTabId = session.right_bottom_active;
+    }
+
+    state.isSplit = session.split;
+    state.isQuad = !!session.quad;
+
+    // Apply layout
+    if (state.isQuad) {
+        setQuadView(true);
+    } else {
+        setSplitView(state.isSplit);
+    }
+
+    // Activate/switch tabs
     switchTab('left', state.panes.left.activeTabId);
-    if (state.isSplit && state.panes.right.activeTabId) {
-        switchTab('right', state.panes.right.activeTabId);
+    
+    if (state.isQuad || state.isSplit) {
+        if (state.panes.right.activeTabId) {
+            switchTab('right', state.panes.right.activeTabId);
+        }
+    }
+    if (state.isQuad) {
+        if (state.panes['left-bottom'].activeTabId) {
+            switchTab('left-bottom', state.panes['left-bottom'].activeTabId);
+        }
+        if (state.panes['right-bottom'].activeTabId) {
+            switchTab('right-bottom', state.panes['right-bottom'].activeTabId);
+        }
     }
 }
 
@@ -115,7 +161,7 @@ export async function restoreDefaultWorkspace() {
         if (!response.ok) throw new Error('No saved default session');
         const data = await response.json();
         const s = data.session;
-        if (s && (s.left_tabs?.length > 0 || s.right_tabs?.length > 0)) {
+        if (s && (s.left_tabs?.length > 0 || s.right_tabs?.length > 0 || s.left_bottom_tabs?.length > 0 || s.right_bottom_tabs?.length > 0)) {
             await restoreSession(s);
             return;
         }

@@ -11,37 +11,96 @@ export function initSplitView(updateSelectionUI, createTab) {
 export function setActivePane(paneId) {
     state.activePane = paneId;
     
-    document.getElementById('pane-left').classList.toggle('active-pane', paneId === 'left');
-    document.getElementById('pane-right').classList.toggle('active-pane', paneId === 'right');
+    Object.keys(state.panes).forEach(id => {
+        const paneEl = document.getElementById(`pane-${id}`);
+        if (paneEl) {
+            paneEl.classList.toggle('active-pane', id === paneId);
+        }
+    });
     
     if (updateSelectionUICallback) {
         updateSelectionUICallback();
     }
 }
 
-export function setSplitView(split) {
-    state.isSplit = split;
+export function updateLayout() {
     const container = document.getElementById('panes-container');
-    const rightPane = document.getElementById('pane-right');
-    const btn = document.getElementById('split-toggle-btn');
+    const paneLeft = document.getElementById('pane-left');
+    const paneRight = document.getElementById('pane-right');
+    const paneLeftBottom = document.getElementById('pane-left-bottom');
+    const paneRightBottom = document.getElementById('pane-right-bottom');
 
-    if (split) {
+    const btn2 = document.getElementById('split-2-btn');
+    const btn4 = document.getElementById('split-4-btn');
+
+    if (state.isQuad) {
+        container.className = 'panes-container quad-pane';
+        paneLeft.style.display = 'flex';
+        paneRight.style.display = 'flex';
+        paneLeftBottom.style.display = 'flex';
+        paneRightBottom.style.display = 'flex';
+
+        if (btn2) btn2.classList.remove('btn-accent');
+        if (btn4) btn4.classList.add('btn-accent');
+
+        // Initialize panes if empty
+        const activeTab = state.panes[state.activePane]?.tabs.find(t => t.id === state.panes[state.activePane].activeTabId);
+        const path = activeTab ? activeTab.currentPath : '/';
+
+        ['left-bottom', 'right-bottom', 'right'].forEach(paneId => {
+            if (state.panes[paneId].tabs.length === 0) {
+                if (createTabCallback) {
+                    createTabCallback(paneId, path);
+                }
+            }
+        });
+    } else if (state.isSplit) {
         container.className = 'panes-container split-pane';
-        rightPane.style.display = 'flex';
-        btn.textContent = 'Single Pane (F3)';
-        
-        // If right pane doesn't have any tab, duplicate left active path
+        paneLeft.style.display = 'flex';
+        paneRight.style.display = 'flex';
+        paneLeftBottom.style.display = 'none';
+        paneRightBottom.style.display = 'none';
+
+        if (btn2) btn2.classList.add('btn-accent');
+        if (btn4) btn4.classList.remove('btn-accent');
+
         if (state.panes.right.tabs.length === 0) {
-            const leftTab = state.panes.left.tabs.find(t => t.id === state.panes.left.activeTabId);
-            const path = leftTab ? leftTab.currentPath : '/';
+            const activeTab = state.panes.left.tabs.find(t => t.id === state.panes.left.activeTabId);
+            const path = activeTab ? activeTab.currentPath : '/';
             if (createTabCallback) {
                 createTabCallback('right', path);
             }
         }
+
+        if (state.activePane === 'left-bottom' || state.activePane === 'right-bottom') {
+            setActivePane('left');
+        }
     } else {
         container.className = 'panes-container single-pane';
-        rightPane.style.display = 'none';
-        btn.textContent = 'Split View (F3)';
+        paneLeft.style.display = 'flex';
+        paneRight.style.display = 'none';
+        paneLeftBottom.style.display = 'none';
+        paneRightBottom.style.display = 'none';
+
+        if (btn2) btn2.classList.remove('btn-accent');
+        if (btn4) btn4.classList.remove('btn-accent');
+
         setActivePane('left');
     }
+}
+
+export function setSplitView(split) {
+    state.isSplit = split;
+    if (split) {
+        state.isQuad = false;
+    }
+    updateLayout();
+}
+
+export function setQuadView(quad) {
+    state.isQuad = quad;
+    if (quad) {
+        state.isSplit = false;
+    }
+    updateLayout();
 }

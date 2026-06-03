@@ -1,8 +1,9 @@
 import { state, getActiveTab, getActivePane, getRecentTabs } from './state.js';
-import { setSplitView } from './split-view.js';
+import { setSplitView, setQuadView } from './split-view.js';
 import { createTab, closeTab, switchTab } from './tabs.js';
 import { navigatePaneUp } from './navigation.js';
 import { openQuickFind } from './quick-find.js';
+import { getIsBatchRenameActive, cancelBatchRename } from './batch-rename.js';
 import { 
     triggerClipboard, 
     triggerPaste, 
@@ -138,6 +139,14 @@ window.addEventListener('blur', cancelTabCycling);
 
 // Keyboard Shortcuts Router
 export function handleKeyboardShortcuts(e) {
+    if (getIsBatchRenameActive()) {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelBatchRename();
+            return;
+        }
+    }
+
     if (recentTabsVisible) {
         if (e.key === 'Escape') {
             e.preventDefault();
@@ -177,6 +186,10 @@ export function handleKeyboardShortcuts(e) {
     else if (e.key === 'F3') {
         e.preventDefault();
         setSplitView(!state.isSplit);
+    }
+    else if (e.key === 'F4') {
+        e.preventDefault();
+        setQuadView(!state.isQuad);
     }
     else if (e.ctrlKey && e.key.toLowerCase() === 'b') {
         e.preventDefault();

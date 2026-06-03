@@ -1,6 +1,7 @@
 export const state = {
-    activePane: 'left', // 'left' or 'right'
+    activePane: 'left', // 'left', 'right', 'left-bottom', 'right-bottom'
     isSplit: false,
+    isQuad: false,
     bookmarks: [],
     mounts: [],
     panes: {
@@ -11,6 +12,18 @@ export const state = {
             isLoading: false
         },
         right: {
+            activeTabId: null,
+            tabs: [],
+            collapsedGroups: new Set(),
+            isLoading: false
+        },
+        'left-bottom': {
+            activeTabId: null,
+            tabs: [],
+            collapsedGroups: new Set(),
+            isLoading: false
+        },
+        'right-bottom': {
             activeTabId: null,
             tabs: [],
             collapsedGroups: new Set(),
