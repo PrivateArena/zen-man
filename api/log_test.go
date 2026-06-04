@@ -528,10 +528,12 @@ func TestConcurrentAppend(t *testing.T) {
 func TestHandleLogRecent(t *testing.T) {
 	// Override the global singleton for this test
 	orig := globalLog
+	origOnce := globalLogOnce
 	globalLog = nil
 	globalLogOnce = *new(sync.Once)
 	defer func() {
 		globalLog = orig
+		globalLogOnce = origOnce
 	}()
 
 	// Point log dir to temp
@@ -560,9 +562,13 @@ func TestHandleLogRecent(t *testing.T) {
 
 func TestHandleLogRevertUnknownID(t *testing.T) {
 	orig := globalLog
+	origOnce := globalLogOnce
 	globalLog = nil
 	globalLogOnce = *new(sync.Once)
-	defer func() { globalLog = orig }()
+	defer func() {
+		globalLog = orig
+		globalLogOnce = origOnce
+	}()
 
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 

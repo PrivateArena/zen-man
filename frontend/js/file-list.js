@@ -520,7 +520,7 @@ export function updateClipboardUI() {
     const count = isClipboardActive ? state.clipboard.items.length : 0;
     const op = isClipboardActive ? state.clipboard.op : null;
     
-    ['left', 'right'].forEach(paneId => {
+    Object.keys(state.panes).forEach(paneId => {
         const paneEl = getPaneDom(paneId);
         if (!paneEl) return;
         const actionEl = paneEl.querySelector('.status-action');

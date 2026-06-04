@@ -62,6 +62,20 @@ func HandleFileOp(w http.ResponseWriter, r *http.Request) {
 		handleClipboardSet(w, "copy", req.Sources)
 	case "cut":
 		handleClipboardSet(w, "cut", req.Sources)
+	case "copy_inside":
+		resolved, err := resolveInsideSources(req.Sources)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusBadRequest)
+			return
+		}
+		handleClipboardSet(w, "copy", resolved)
+	case "cut_inside":
+		resolved, err := resolveInsideSources(req.Sources)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "%v"}`, err), http.StatusBadRequest)
+			return
+		}
+		handleClipboardSet(w, "cut", resolved)
 	case "clear":
 		handleClearClipboard(w)
 	case "paste":
@@ -118,7 +132,57 @@ func handleClipboardSet(w http.ResponseWriter, op string, sources []string) {
 	// Log clipboard set (ActionCopy covers both "copy" and "cut" clipboard intent)
 	GetLog().Append(ActionCopy, sources, "", "")
 
-	w.Write([]byte(`{"status": "success"}`))
+	// Build items info to return to frontend
+	var items []map[string]interface{}
+	for _, src := range sources {
+		name := filepath.Base(src)
+		isDir := false
+		var size int64 = 0
+		if fi, err := os.Stat(src); err == nil {
+			isDir = fi.IsDir()
+			size = fi.Size()
+		}
+		items = append(items, map[string]interface{}{
+			"name":  name,
+			"path":  src,
+			"isDir": isDir,
+			"size":  size,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "success",
+		"op":     op,
+		"items":  items,
+	})
+}
+
+func resolveInsideSources(sources []string) ([]string, error) {
+	if len(sources) == 0 {
+		return nil, fmt.Errorf("no source folder specified")
+	}
+	var resolved []string
+	for _, src := range sources {
+		stat, err := os.Stat(src)
+		if err != nil {
+			return nil, fmt.Errorf("failed to access folder: %w", err)
+		}
+		if !stat.IsDir() {
+			return nil, fmt.Errorf("source is not a directory")
+		}
+		entries, err := os.ReadDir(src)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read folder contents: %w", err)
+		}
+		for _, entry := range entries {
+			resolved = append(resolved, filepath.Join(src, entry.Name()))
+		}
+	}
+	if len(resolved) == 0 {
+		return nil, fmt.Errorf("folder is empty, nothing to copy/cut")
+	}
+	return resolved, nil
 }
 
 func handleClearClipboard(w http.ResponseWriter) {
@@ -161,7 +225,7 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 		for _, src := range paths {
 			name := filepath.Base(src)
 			dst := filepath.Join(req.Dest, name)
-			if src == dst {
+			if src == dst || (isSourceDir(src) && isSubdir(src, dst)) {
 				continue
 			}
 			srcInfo, err := os.Stat(src)
@@ -209,7 +273,7 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 		name := filepath.Base(src)
 		dst := filepath.Join(req.Dest, name)
 
-		if src == dst {
+		if src == dst || (isSourceDir(src) && isSubdir(src, dst)) {
 			continue
 		}
 
@@ -701,4 +765,19 @@ func copyItem(src, dst string) error {
 		return copyDir(src, dst)
 	}
 	return copyFile(src, dst)
+}
+
+func isSourceDir(src string) bool {
+	fi, err := os.Stat(src)
+	return err == nil && fi.IsDir()
+}
+
+func isSubdir(parent, child string) bool {
+	parent = filepath.Clean(parent)
+	child = filepath.Clean(child)
+	if parent == child {
+		return true
+	}
+	parentWithSlash := parent + string(filepath.Separator)
+	return strings.HasPrefix(child, parentWithSlash)
 }

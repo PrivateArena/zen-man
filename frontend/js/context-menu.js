@@ -45,6 +45,22 @@ export function showContextMenu(e, targetPath, isDir, isItem) {
                 <div class="context-menu-item" data-action="open-in-new-tab">
                     <span>Open in New Tab</span>
                 </div>
+                <div class="context-menu-item" data-action="copy-inside" data-target-path="${targetPath}">
+                    <span>Copy Inside</span>
+                </div>
+                <div class="context-menu-item" data-action="cut-inside" data-target-path="${targetPath}">
+                    <span>Cut Inside</span>
+                </div>
+            `;
+            const hasClipboard = state.clipboard && state.clipboard.op;
+            if (hasClipboard) {
+                html += `
+                    <div class="context-menu-item" data-action="paste-inside" data-target-path="${targetPath}">
+                        <span>Paste Inside</span>
+                    </div>
+                `;
+            }
+            html += `
                 <div class="context-menu-separator"></div>
             `;
         }
@@ -128,37 +144,43 @@ export function triggerOpen() {
     });
 }
 
-export async function triggerClipboard(op) {
+export async function triggerClipboard(op, inside = false) {
     const tab = getActiveTab();
     if (!tab || tab.selectedPaths.size === 0) return;
     try {
-        await executeFileOp(op, [...tab.selectedPaths]);
+        const actionOp = inside ? `${op}_inside` : op;
+        const data = await executeFileOp(actionOp, [...tab.selectedPaths]);
         
-        const clipboardItems = [];
-        tab.loadedEntries.forEach(entry => {
-            const fullPath = tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + entry.name;
-            if (tab.selectedPaths.has(fullPath)) {
-                clipboardItems.push({
-                    name: entry.name,
-                    path: fullPath,
-                    isDir: entry.is_dir,
-                    size: entry.size
-                });
-            }
-        });
-        
-        if (clipboardItems.length < tab.selectedPaths.size) {
-            tab.selectedPaths.forEach(path => {
-                const name = path.split('/').pop() || path;
-                if (!clipboardItems.some(item => item.path === path)) {
+        let clipboardItems = [];
+        if (data.status === 'success' && data.items) {
+            clipboardItems = data.items;
+        } else {
+            // fallback (original behavior)
+            tab.loadedEntries.forEach(entry => {
+                const fullPath = tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + entry.name;
+                if (tab.selectedPaths.has(fullPath)) {
                     clipboardItems.push({
-                        name: name,
-                        path: path,
-                        isDir: path.endsWith('/') || !name.includes('.'),
-                        size: null
+                        name: entry.name,
+                        path: fullPath,
+                        isDir: entry.is_dir,
+                        size: entry.size
                     });
                 }
             });
+            
+            if (clipboardItems.length < tab.selectedPaths.size) {
+                tab.selectedPaths.forEach(path => {
+                    const name = path.split('/').pop() || path;
+                    if (!clipboardItems.some(item => item.path === path)) {
+                        clipboardItems.push({
+                            name: name,
+                            path: path,
+                            isDir: path.endsWith('/') || !name.includes('.'),
+                            size: null
+                        });
+                    }
+                });
+            }
         }
         
         state.clipboard = {
@@ -168,7 +190,11 @@ export async function triggerClipboard(op) {
         updateClipboardUI();
         
         const infoEl = getPaneDom(state.activePane).querySelector('.status-info');
-        infoEl.textContent = `${op === 'copy' ? 'Copied' : 'Cut'} ${tab.selectedPaths.size} item(s)`;
+        if (inside) {
+            infoEl.textContent = `${op === 'copy' ? 'Copied' : 'Cut'} contents of ${tab.selectedPaths.size} folder(s)`;
+        } else {
+            infoEl.textContent = `${op === 'copy' ? 'Copied' : 'Cut'} ${tab.selectedPaths.size} item(s)`;
+        }
     } catch (err) {
         alert(`Error executing operation: ${err.message}`);
     }
@@ -192,18 +218,19 @@ export async function triggerClearClipboard() {
     }
 }
 
-export async function triggerPaste() {
+export async function triggerPaste(destPath = null) {
     const tab = getActiveTab();
     if (!tab) return;
     try {
-        let data = await executeFileOp('paste', [], tab.currentPath);
+        const targetDest = destPath || tab.currentPath;
+        let data = await executeFileOp('paste', [], targetDest);
         
         if (data.status === 'conflict') {
             const confirmMerge = confirm(`Folder(s) "${data.conflicts.join(', ')}" already exist at the destination. Do you want to merge them?`);
             if (!confirmMerge) {
                 return;
             }
-            data = await executeFileOp('paste', [], tab.currentPath, null, true);
+            data = await executeFileOp('paste', [], targetDest, null, true);
         }
         
         const { operation, sources, entries } = data;
@@ -233,7 +260,7 @@ export async function triggerPaste() {
             Object.keys(state.panes).forEach(paneId => {
                 const pane = state.panes[paneId];
                 pane.tabs.forEach(t => {
-                    if (t.currentPath === tab.currentPath) {
+                    if (t.currentPath === targetDest) {
                         const newNames = new Set(entries.map(e => e.name));
                         t.loadedEntries = t.loadedEntries.filter(e => !newNames.has(e.name));
                         t.loadedEntries.push(...entries);
@@ -429,6 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const paneId = item.getAttribute('data-pane-id');
             const tabId = item.getAttribute('data-tab-id');
             const color = item.getAttribute('data-color');
+            const targetPath = item.getAttribute('data-target-path');
             
             if (action === 'open-in-new-tab') {
                 triggerOpenInNewTab();
@@ -438,6 +466,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 triggerClipboard('copy');
             } else if (action === 'cut') {
                 triggerClipboard('cut');
+            } else if (action === 'copy-inside') {
+                triggerClipboard('copy', true);
+            } else if (action === 'cut-inside') {
+                triggerClipboard('cut', true);
             } else if (action === 'copy-path') {
                 triggerCopyPath();
             } else if (action === 'copy-name') {
@@ -448,6 +480,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 triggerDelete();
             } else if (action === 'paste') {
                 triggerPaste();
+            } else if (action === 'paste-inside') {
+                triggerPaste(targetPath);
             } else if (action === 'create-folder') {
                 triggerCreateFolder();
             } else if (action === 'close-tab') {
