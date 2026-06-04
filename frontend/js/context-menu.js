@@ -70,15 +70,14 @@ export function showContextMenu(e, targetPath, isDir, isItem) {
                 <span class="context-menu-shortcut">Enter</span>
             </div>
             <div class="context-menu-separator"></div>
-            <div class="context-menu-item" data-action="copy">
-                <span>Copy</span>
-                <span class="context-menu-shortcut">Ctrl+C</span>
-            </div>
             <div class="context-menu-item" data-action="cut">
                 <span>Cut</span>
                 <span class="context-menu-shortcut">Ctrl+X</span>
             </div>
-            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" data-action="copy">
+                <span>Copy</span>
+                <span class="context-menu-shortcut">Ctrl+C</span>
+            </div>
             <div class="context-menu-item" data-action="copy-path">
                 <span>Copy Path</span>
                 <span class="context-menu-shortcut">Alt+C</span>

@@ -55,7 +55,7 @@ func main() {
 	// Static files
 	mux.Handle("/", fileServer)
 
-		// API Handlers (wrapped or bound in api subpackage)
+	// API Handlers (wrapped or bound in api subpackage)
 	mux.HandleFunc("/api/dir", api.HandleReadDirectory)
 	mux.HandleFunc("/api/op", api.HandleFileOp)
 	mux.HandleFunc("/api/places", api.HandlePlaces)
@@ -78,9 +78,9 @@ func main() {
 	url := fmt.Sprintf("http://127.0.0.1:%d", assignedPort)
 	fmt.Printf("Zen-Man File Manager listening on %s\n", url)
 
-	if !*devMode {
-		openBrowser(url)
-	}
+	//if !*devMode {
+	//	openBrowser(url)
+	//}
 
 	if err := http.Serve(listener, mux); err != nil {
 		log.Fatalf("Server error: %v", err)
@@ -88,9 +88,6 @@ func main() {
 }
 
 // Dummy handler implementations for initial compilation
-
-
-
 
 func handleProperties(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
