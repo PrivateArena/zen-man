@@ -17,3 +17,28 @@ export function formatDate(timestamp) {
         minute: '2-digit'
     });
 }
+
+export function positionElementSmartly(menuElement, clientX, clientY) {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    const menuWidth = menuElement.offsetWidth;
+    const menuHeight = menuElement.offsetHeight;
+
+    let x = clientX;
+    let y = clientY;
+
+    if (x + menuWidth > viewportWidth) {
+        x = clientX - menuWidth;
+    }
+    if (y + menuHeight > viewportHeight) {
+        y = clientY - menuHeight;
+    }
+
+    // Clamp within viewport boundaries
+    x = Math.max(0, Math.min(x, viewportWidth - menuWidth));
+    y = Math.max(0, Math.min(y, viewportHeight - menuHeight));
+
+    menuElement.style.left = `${x}px`;
+    menuElement.style.top  = `${y}px`;
+}

@@ -2,6 +2,7 @@ import { state, getPaneDom, getPaneTab, dragTabState, updateMru } from './state.
 import { navigateTo, renderBreadcrumbs, updateNavButtons, setPaneViewMode } from './navigation.js';
 import { renderFiles } from './file-list.js';
 import { setActivePane } from './split-view.js';
+import { positionElementSmartly } from './utils.js';
 
 let _autoSaveCallback = null;
 export function initTabs(autoSaveCallback) {
@@ -344,10 +345,6 @@ export function assignTabGroup(paneId, tabId, color) {
 
 export function showTabContextMenu(e, paneId, tabId) {
     const menu = document.getElementById('context-menu');
-    menu.style.left = `${e.clientX}px`;
-    menu.style.top = `${e.clientY}px`;
-    menu.style.display = 'block';
-
     const colors = ['red', 'blue', 'green', 'yellow', 'purple'];
     let groupHtml = colors.map(c => `
         <div class="context-menu-item" data-action="assign-tab-group" data-pane-id="${paneId}" data-tab-id="${tabId}" data-color="${c}">
@@ -379,4 +376,6 @@ export function showTabContextMenu(e, paneId, tabId) {
             <span>Remove Group</span>
         </div>
     `;
+    menu.style.display = 'block';
+    positionElementSmartly(menu, e.clientX, e.clientY);
 }

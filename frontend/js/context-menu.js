@@ -5,6 +5,7 @@ import { executeFileOp, openFile } from './api.js';
 import { updateItemSelectionStyles, updateSelectionUI, renderFiles, updateClipboardUI } from './file-list.js';
 import { createTab, closeTab, duplicateTab, assignTabGroup } from './tabs.js';
 import { getActionsForContext, handleActionMenuClick, handleActionMenuClickForPath } from './custom-actions.js';
+import { positionElementSmartly } from './utils.js';
 
 // Right Click Context Menu Handler
 export function handlePaneContextMenu(e, paneId) {
@@ -36,10 +37,9 @@ export function handlePaneContextMenu(e, paneId) {
 function _positionAndShow(e, html, context = 'file-list') {
     const menu = document.getElementById('context-menu');
     menu.setAttribute('data-menu-context', context);
-    menu.style.left = `${e.clientX}px`;
-    menu.style.top  = `${e.clientY}px`;
-    menu.style.display = 'block';
     menu.innerHTML = html;
+    menu.style.display = 'block';
+    positionElementSmartly(menu, e.clientX, e.clientY);
 }
 
 export function showContextMenu(e, targetPath, isDir, isItem) {
