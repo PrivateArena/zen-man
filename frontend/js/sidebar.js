@@ -29,6 +29,12 @@ export function loadSidebarPlaces() {
                 navigateToCallback(path);
             }
         });
+        item.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const path = item.getAttribute('data-path');
+            import('./context-menu.js').then(m => m.showFolderContextMenu(e, path, state.activePane, 'sidebar'));
+        });
     });
 
     loadPlacesAndMounts();
@@ -80,6 +86,13 @@ export function renderBookmarks() {
             }
         });
         
+        item.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const path = item.getAttribute('data-path');
+            import('./context-menu.js').then(m => m.showFolderContextMenu(e, path, state.activePane, 'sidebar'));
+        });
+
         item.addEventListener('mouseenter', () => {
             const delBtn = item.querySelector('.btn-delete-bookmark');
             if (delBtn) delBtn.style.opacity = 1;
@@ -110,6 +123,12 @@ export function renderMounts() {
             if (navigateToCallback) {
                 navigateToCallback(item.getAttribute('data-path'));
             }
+        });
+        item.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const path = item.getAttribute('data-path');
+            import('./context-menu.js').then(m => m.showFolderContextMenu(e, path, state.activePane, 'sidebar'));
         });
     });
 }

@@ -4,7 +4,7 @@ import { navigateTo } from './navigation.js';
 import { executeFileOp, openFile } from './api.js';
 import { updateItemSelectionStyles, updateSelectionUI, renderFiles, updateClipboardUI } from './file-list.js';
 import { createTab, closeTab, duplicateTab, assignTabGroup } from './tabs.js';
-import { getActionsForContext, handleActionMenuClick } from './custom-actions.js';
+import { getActionsForContext, handleActionMenuClick, handleActionMenuClickForPath } from './custom-actions.js';
 
 // Right Click Context Menu Handler
 export function handlePaneContextMenu(e, paneId) {
@@ -32,12 +32,17 @@ export function handlePaneContextMenu(e, paneId) {
     }
 }
 
-export function showContextMenu(e, targetPath, isDir, isItem) {
+// --- Shared position helper ---
+function _positionAndShow(e, html, context = 'file-list') {
     const menu = document.getElementById('context-menu');
+    menu.setAttribute('data-menu-context', context);
     menu.style.left = `${e.clientX}px`;
-    menu.style.top = `${e.clientY}px`;
+    menu.style.top  = `${e.clientY}px`;
     menu.style.display = 'block';
+    menu.innerHTML = html;
+}
 
+export function showContextMenu(e, targetPath, isDir, isItem) {
     let html = '';
     if (isItem) {
         if (isDir) {
@@ -60,9 +65,7 @@ export function showContextMenu(e, targetPath, isDir, isItem) {
                     </div>
                 `;
             }
-            html += `
-                <div class="context-menu-separator"></div>
-            `;
+            html += `<div class="context-menu-separator"></div>`;
         }
         html += `
             <div class="context-menu-item" data-action="open">
@@ -115,7 +118,34 @@ export function showContextMenu(e, targetPath, isDir, isItem) {
         html += '<div class="context-menu-separator"></div>' + customHtml;
     }
 
-    menu.innerHTML = html;
+    _positionAndShow(e, html, 'file-list');
+}
+
+// --- Folder context menu (used by breadcrumbs and sidebar) ---
+export function showFolderContextMenu(e, folderPath, paneId, context = 'folder') {
+    let html = `
+        <div class="context-menu-item" data-action="open-path-in-new-tab"
+             data-target-path="${folderPath}" data-pane-id="${paneId}">
+            <span>Open in New Tab</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="copy-path" data-target-path="${folderPath}">
+            <span>Copy Path</span>
+        </div>
+        <div class="context-menu-item" data-action="copy-name" data-target-path="${folderPath}">
+            <span>Copy Name</span>
+        </div>
+    `;
+
+    // Custom actions scoped to dirs (folders are always directories)
+    const customHtml = getActionsForContext(true, true, folderPath)
+        .replace(/data-action="custom-action"/g,
+                 `data-action="custom-action-for-path" data-target-path="${folderPath}"`);
+    if (customHtml) {
+        html += '<div class="context-menu-separator"></div>' + customHtml;
+    }
+
+    _positionAndShow(e, html, context);
 }
 
 export function triggerOpenInNewTab() {
@@ -459,6 +489,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (action === 'open-in-new-tab') {
                 triggerOpenInNewTab();
+            } else if (action === 'open-path-in-new-tab') {
+                // Breadcrumb: open an explicit path in a new tab
+                if (targetPath && paneId) createTab(paneId, targetPath);
             } else if (action === 'open') {
                 triggerOpen();
             } else if (action === 'copy') {
@@ -470,9 +503,12 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (action === 'cut-inside') {
                 triggerClipboard('cut', true);
             } else if (action === 'copy-path') {
-                triggerCopyPath();
+                // data-target-path overrides selectedPaths (used by breadcrumb menu)
+                if (targetPath) navigator.clipboard.writeText(targetPath + '\n');
+                else triggerCopyPath();
             } else if (action === 'copy-name') {
-                triggerCopyName();
+                if (targetPath) navigator.clipboard.writeText((targetPath.split('/').pop() || targetPath) + '\n');
+                else triggerCopyName();
             } else if (action === 'rename') {
                 triggerRename();
             } else if (action === 'delete') {
@@ -496,6 +532,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (action === 'custom-action') {
                 const actionId = item.getAttribute('data-action-id');
                 handleActionMenuClick(actionId);
+            } else if (action === 'custom-action-for-path') {
+                // Folder custom actions: explicit path rather than selectedPaths
+                const actionId = item.getAttribute('data-action-id');
+                handleActionMenuClickForPath(actionId, targetPath, targetPath);
             }
         });
     }

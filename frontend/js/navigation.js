@@ -113,6 +113,12 @@ export function renderBreadcrumbs(paneId) {
             const targetPath = seg.getAttribute('data-path');
             navigateTo(targetPath, true, paneId);
         });
+        seg.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation(); // prevent pane-level contextmenu from firing
+            const crumbPath = seg.getAttribute('data-path');
+            import('./context-menu.js').then(m => m.showFolderContextMenu(e, crumbPath, paneId, 'breadcrumb'));
+        });
     });
 }
 

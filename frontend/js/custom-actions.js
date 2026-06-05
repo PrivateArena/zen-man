@@ -380,6 +380,13 @@ export function handleActionMenuClick(actionId) {
     executeCustomAction(action, paths, dir);
 }
 
+// Trigger custom action with an explicit path (used by breadcrumb context menu)
+export function handleActionMenuClickForPath(actionId, targetPath, dir) {
+    const action = customActions.find(a => a.id === actionId);
+    if (!action) return;
+    executeCustomAction(action, [targetPath], dir);
+}
+
 async function executeCustomAction(action, paths, dir) {
     try {
         const response = await fetch('/api/action/exec', {
