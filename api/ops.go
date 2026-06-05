@@ -366,12 +366,13 @@ func handleRename(w http.ResponseWriter, sources []string, newName string) {
 		dir := filepath.Dir(src)
 		dst := filepath.Join(dir, newName)
 
-		if err := os.Rename(src, dst); err != nil {
-			http.Error(w, fmt.Sprintf(`{"error": "Rename failed: %v"}`, err), http.StatusInternalServerError)
-			return
+		if src != dst {
+			if err := os.Rename(src, dst); err != nil {
+				http.Error(w, fmt.Sprintf(`{"error": "Rename failed: %v"}`, err), http.StatusInternalServerError)
+				return
+			}
+			GetLog().Append(ActionRename, []string{src}, "", newName)
 		}
-
-		GetLog().Append(ActionRename, []string{src}, "", newName)
 
 		info, err := os.Stat(dst)
 		if err != nil {
@@ -416,6 +417,10 @@ func handleRename(w http.ResponseWriter, sources []string, newName string) {
 		dir := filepath.Dir(src)
 		dst := filepath.Join(dir, name)
 
+		if src == dst {
+			continue // skip renaming to itself
+		}
+
 		if err := os.Rename(src, dst); err != nil {
 			if len(renamedSources) > 0 {
 				serializedSuccess, _ := json.Marshal(renamedNewNames)
@@ -423,6 +428,15 @@ func handleRename(w http.ResponseWriter, sources []string, newName string) {
 			}
 			http.Error(w, fmt.Sprintf(`{"error": "Rename failed at %s -> %s: %v"}`, src, dst, err), http.StatusInternalServerError)
 			return
+		}
+
+		// Update subsequent source paths in case a parent directory was renamed
+		srcSlash := src + string(filepath.Separator)
+		dstSlash := dst + string(filepath.Separator)
+		for j := i + 1; j < len(sources); j++ {
+			if strings.HasPrefix(sources[j], srcSlash) {
+				sources[j] = dstSlash + strings.TrimPrefix(sources[j], srcSlash)
+			}
 		}
 
 		renamedSources = append(renamedSources, src)

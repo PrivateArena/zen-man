@@ -142,8 +142,21 @@ export async function applyBatchRename() {
     applyBtn.disabled = true;
     applyBtn.textContent = 'Applying...';
 
-    const sources = batchRenameFiles.map(f => f.path);
-    const newNames = previews.map(p => p.preview);
+    const changedIndexes = [];
+    previews.forEach((p, idx) => {
+        if (p.status !== 'unchanged') {
+            changedIndexes.push(idx);
+        }
+    });
+
+    if (changedIndexes.length === 0) {
+        cancelBatchRename();
+        return;
+    }
+
+    const sources = changedIndexes.map(idx => batchRenameFiles[idx].path);
+    const newNames = changedIndexes.map(idx => previews[idx].preview);
+
 
     try {
         await executeFileOp('rename', sources, null, JSON.stringify(newNames));
