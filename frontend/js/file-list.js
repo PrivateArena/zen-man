@@ -402,20 +402,90 @@ export async function loadMoreFiles(paneId, loadAll) {
     }
 }
 
+export function getOrderedSelectablePaths(tab) {
+    const paths = [];
+    if (tab.viewMode === 'list') {
+        if (tab.flatViewMode === 'grouped') {
+            let currentGroup = null;
+            const collapsedFileGroups = tab.collapsedFileGroups || new Set();
+            
+            tab.loadedEntries.forEach(entry => {
+                const relPath = entry.rel_path || '';
+                const lastSlash = relPath.lastIndexOf('/');
+                const parentDir = lastSlash !== -1 ? relPath.substring(0, lastSlash) : '.';
+                
+                if (parentDir !== currentGroup) {
+                    currentGroup = parentDir;
+                }
+                
+                const isCollapsed = collapsedFileGroups.has(currentGroup);
+                if (!isCollapsed) {
+                    const entryPathSuffix = entry.rel_path || entry.name;
+                    const fullPath = tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + entryPathSuffix;
+                    paths.push(fullPath);
+                }
+            });
+        } else {
+            tab.loadedEntries.forEach(entry => {
+                const entryPathSuffix = entry.rel_path || entry.name;
+                const fullPath = tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + entryPathSuffix;
+                paths.push(fullPath);
+            });
+        }
+    } else {
+        tab.loadedEntries.forEach(entry => {
+            const fullPath = tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + entry.name;
+            paths.push(fullPath);
+        });
+    }
+    return paths;
+}
+
 export function handleItemClick(paneId, path, ctrlKey, shiftKey) {
     const pane = state.panes[paneId];
     const tab = pane.tabs.find(t => t.id === pane.activeTabId);
     if (!tab) return;
 
-    if (ctrlKey) {
+    if (shiftKey) {
+        const orderedPaths = getOrderedSelectablePaths(tab);
+        const clickedIndex = orderedPaths.indexOf(path);
+        let anchorIndex = tab.anchorPath ? orderedPaths.indexOf(tab.anchorPath) : -1;
+
+        if (anchorIndex === -1 || clickedIndex === -1) {
+            if (ctrlKey) {
+                if (tab.selectedPaths.has(path)) {
+                    tab.selectedPaths.delete(path);
+                } else {
+                    tab.selectedPaths.add(path);
+                    tab.anchorPath = path;
+                }
+            } else {
+                tab.selectedPaths.clear();
+                tab.selectedPaths.add(path);
+                tab.anchorPath = path;
+            }
+        } else {
+            if (!ctrlKey) {
+                tab.selectedPaths.clear();
+            }
+            const start = Math.min(anchorIndex, clickedIndex);
+            const end = Math.max(anchorIndex, clickedIndex);
+            for (let i = start; i <= end; i++) {
+                tab.selectedPaths.add(orderedPaths[i]);
+            }
+        }
+    } else if (ctrlKey) {
         if (tab.selectedPaths.has(path)) {
             tab.selectedPaths.delete(path);
+            tab.anchorPath = path;
         } else {
             tab.selectedPaths.add(path);
+            tab.anchorPath = path;
         }
     } else {
         tab.selectedPaths.clear();
         tab.selectedPaths.add(path);
+        tab.anchorPath = path;
     }
     
     updateItemSelectionStyles(paneId);
