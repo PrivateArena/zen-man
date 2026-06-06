@@ -202,17 +202,22 @@ func handlePaste(w http.ResponseWriter, req OpRequest) {
 	}
 
 	var paths []string
+	var isURIList bool
 	var err error
 	if len(req.Sources) > 0 {
 		paths = req.Sources
+		isURIList = true
 	} else {
-		paths, err = readFromSystemClipboard()
-		clipboardMutex.Lock()
-		if err != nil || len(paths) == 0 {
-			paths = currentClipboard.Sources
-		}
-		clipboardMutex.Unlock()
+		paths, isURIList, err = readFromSystemClipboard()
 	}
+
+	clipboardMutex.Lock()
+	if len(currentClipboard.Sources) > 0 && !isURIList {
+		paths = currentClipboard.Sources
+	} else if err != nil || len(paths) == 0 {
+		paths = currentClipboard.Sources
+	}
+	clipboardMutex.Unlock()
 
 	if len(paths) == 0 {
 		http.Error(w, `{"error": "Clipboard is empty"}`, http.StatusBadRequest)
@@ -537,19 +542,19 @@ func writeToSystemClipboard(paths []string) {
 	}
 }
 
-func readFromSystemClipboard() ([]string, error) {
+func readFromSystemClipboard() ([]string, bool, error) {
 	// Try Wayland wl-paste
 	if _, err := exec.LookPath("wl-paste"); err == nil {
 		cmd := exec.Command("wl-paste", "-t", "text/uri-list")
 		out, err := cmd.Output()
 		if err == nil {
-			return parseURIList(string(out)), nil
+			return parseURIList(string(out)), true, nil
 		}
 		// Fallback to plain text
 		cmdFallback := exec.Command("wl-paste")
 		outFallback, errFallback := cmdFallback.Output()
 		if errFallback == nil {
-			return parsePlainPaths(string(outFallback)), nil
+			return parsePlainPaths(string(outFallback)), false, nil
 		}
 	}
 
@@ -558,17 +563,17 @@ func readFromSystemClipboard() ([]string, error) {
 		cmd := exec.Command("xclip", "-o", "-selection", "clipboard", "-t", "text/uri-list")
 		out, err := cmd.Output()
 		if err == nil {
-			return parseURIList(string(out)), nil
+			return parseURIList(string(out)), true, nil
 		}
 		// Fallback to plain text
 		cmdFallback := exec.Command("xclip", "-o", "-selection", "clipboard")
 		outFallback, errFallback := cmdFallback.Output()
 		if errFallback == nil {
-			return parsePlainPaths(string(outFallback)), nil
+			return parsePlainPaths(string(outFallback)), false, nil
 		}
 	}
 
-	return nil, fmt.Errorf("no clipboard utility found")
+	return nil, false, fmt.Errorf("no clipboard utility found")
 }
 
 func parseURIList(data string) []string {

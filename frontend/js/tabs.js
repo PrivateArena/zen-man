@@ -1,5 +1,5 @@
 import { state, getPaneDom, getPaneTab, dragTabState, updateMru } from './state.js';
-import { navigateTo, renderBreadcrumbs, updateNavButtons, setPaneViewMode } from './navigation.js';
+import { navigateTo, renderBreadcrumbs, updateNavButtons, setPaneViewMode, disablePaneAddressBarEdit } from './navigation.js';
 import { renderFiles } from './file-list.js';
 import { setActivePane } from './split-view.js';
 import { positionElementSmartly } from './utils.js';
@@ -281,13 +281,17 @@ export function switchTab(paneId, tabId) {
 
     const tab = state.panes[paneId].tabs.find(t => t.id === tabId);
     if (tab) {
+        disablePaneAddressBarEdit(paneId);
         if (!tab.isLoaded) {
             setPaneViewMode(paneId, tab.viewMode);
             navigateTo(tab.currentPath, false, paneId);
         } else {
             setPaneViewMode(paneId, tab.viewMode);
+            renderBreadcrumbs(paneId);
+            updateNavButtons(paneId);
         }
     } else {
+        disablePaneAddressBarEdit(paneId);
         renderFiles(paneId);
         renderBreadcrumbs(paneId);
         updateNavButtons(paneId);

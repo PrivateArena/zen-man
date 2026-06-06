@@ -126,3 +126,58 @@ func TestIsSubdir(t *testing.T) {
 		}
 	}
 }
+
+func TestHandlePasteInside(t *testing.T) {
+	// Create a temporary directory structure
+	tempDir, err := os.MkdirTemp("", "zenman_paste_inside_test_*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	folderA := filepath.Join(tempDir, "FolderA")
+	if err := os.Mkdir(folderA, 0755); err != nil {
+		t.Fatalf("Failed to create FolderA: %v", err)
+	}
+	file1 := filepath.Join(folderA, "file1.txt")
+	os.WriteFile(file1, []byte("hello"), 0644)
+
+	folderB := filepath.Join(tempDir, "FolderB")
+	if err := os.Mkdir(folderB, 0755); err != nil {
+		t.Fatalf("Failed to create FolderB: %v", err)
+	}
+
+	// 1. Cut Inside FolderA
+	reqBody := OpRequest{
+		Op:      "cut_inside",
+		Sources: []string{folderA},
+	}
+	bodyBytes, _ := json.Marshal(reqBody)
+	req, _ := http.NewRequest("POST", "/api/op", bytes.NewReader(bodyBytes))
+	rr := httptest.NewRecorder()
+	HandleFileOp(rr, req)
+
+	// 2. Paste to FolderB
+	reqPaste := OpRequest{
+		Op:   "paste",
+		Dest: folderB,
+	}
+	pasteBytes, _ := json.Marshal(reqPaste)
+	reqP, _ := http.NewRequest("POST", "/api/op", bytes.NewReader(pasteBytes))
+	rrP := httptest.NewRecorder()
+	HandleFileOp(rrP, reqP)
+
+	if rrP.Code != http.StatusOK {
+		t.Fatalf("Expected status code 200, got %d. Body: %s", rrP.Code, rrP.Body.String())
+	}
+
+	// Verify file was moved
+	movedFile := filepath.Join(folderB, "file1.txt")
+	if _, err := os.Stat(movedFile); os.IsNotExist(err) {
+		t.Errorf("Expected file1.txt to be moved to %s, but it does not exist", folderB)
+	}
+	if _, err := os.Stat(file1); !os.IsNotExist(err) {
+		t.Errorf("Expected file1.txt to be removed from %s, but it still exists", folderA)
+	}
+}
+
