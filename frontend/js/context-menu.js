@@ -6,6 +6,7 @@ import { updateItemSelectionStyles, updateSelectionUI, renderFiles, updateClipbo
 import { createTab, closeTab, duplicateTab, assignTabGroup } from './tabs.js';
 import { getActionsForContext, handleActionMenuClick, handleActionMenuClickForPath } from './custom-actions.js';
 import { positionElementSmartly } from './utils.js';
+import { getShortcutDisplay } from './shortcuts.js';
 
 // Right Click Context Menu Handler
 export function handlePaneContextMenu(e, paneId) {
@@ -49,12 +50,15 @@ export function showContextMenu(e, targetPath, isDir, isItem) {
             html += `
                 <div class="context-menu-item" data-action="open-in-new-tab">
                     <span>Open in New Tab</span>
+                    <span class="context-menu-shortcut">${getShortcutDisplay('open-in-new-tab')}</span>
                 </div>
                 <div class="context-menu-item" data-action="copy-inside" data-target-path="${targetPath}">
                     <span>Copy Inside</span>
+                    <span class="context-menu-shortcut">${getShortcutDisplay('copy-inside')}</span>
                 </div>
                 <div class="context-menu-item" data-action="cut-inside" data-target-path="${targetPath}">
                     <span>Cut Inside</span>
+                    <span class="context-menu-shortcut">${getShortcutDisplay('cut-inside')}</span>
                 </div>
             `;
             const hasClipboard = state.clipboard && state.clipboard.op;
@@ -62,6 +66,7 @@ export function showContextMenu(e, targetPath, isDir, isItem) {
                 html += `
                     <div class="context-menu-item" data-action="paste-inside" data-target-path="${targetPath}">
                         <span>Paste Inside</span>
+                        <span class="context-menu-shortcut">${getShortcutDisplay('paste-inside')}</span>
                     </div>
                 `;
             }
@@ -70,45 +75,45 @@ export function showContextMenu(e, targetPath, isDir, isItem) {
         html += `
             <div class="context-menu-item" data-action="open">
                 <span>Open</span>
-                <span class="context-menu-shortcut">Enter</span>
+                <span class="context-menu-shortcut">${getShortcutDisplay('open')}</span>
             </div>
             <div class="context-menu-separator"></div>
             <div class="context-menu-item" data-action="cut">
                 <span>Cut</span>
-                <span class="context-menu-shortcut">Ctrl+X</span>
+                <span class="context-menu-shortcut">${getShortcutDisplay('cut')}</span>
             </div>
             <div class="context-menu-item" data-action="copy">
                 <span>Copy</span>
-                <span class="context-menu-shortcut">Ctrl+C</span>
+                <span class="context-menu-shortcut">${getShortcutDisplay('copy')}</span>
             </div>
             <div class="context-menu-item" data-action="copy-path">
                 <span>Copy Path</span>
-                <span class="context-menu-shortcut">Alt+C</span>
+                <span class="context-menu-shortcut">${getShortcutDisplay('copy-path')}</span>
             </div>
             <div class="context-menu-item" data-action="copy-name">
                 <span>Copy Name</span>
-                <span class="context-menu-shortcut">Alt+Shift+C</span>
+                <span class="context-menu-shortcut">${getShortcutDisplay('copy-name')}</span>
             </div>
             <div class="context-menu-separator"></div>
             <div class="context-menu-item" data-action="rename">
                 <span>Rename</span>
-                <span class="context-menu-shortcut">F2</span>
+                <span class="context-menu-shortcut">${getShortcutDisplay('rename')}</span>
             </div>
             <div class="context-menu-item" data-action="delete" style="color: var(--danger-color);">
                 <span>Delete</span>
-                <span class="context-menu-shortcut">Del</span>
+                <span class="context-menu-shortcut">${getShortcutDisplay('delete')}</span>
             </div>
         `;
     } else {
         html += `
             <div class="context-menu-item" data-action="paste">
                 <span>Paste</span>
-                <span class="context-menu-shortcut">Ctrl+V</span>
+                <span class="context-menu-shortcut">${getShortcutDisplay('paste')}</span>
             </div>
             <div class="context-menu-separator"></div>
             <div class="context-menu-item" data-action="create-folder">
                 <span>New Folder</span>
-                <span class="context-menu-shortcut">Ctrl+Shift+N</span>
+                <span class="context-menu-shortcut">${getShortcutDisplay('create-folder')}</span>
             </div>
         `;
     }

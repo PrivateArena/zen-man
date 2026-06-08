@@ -11,8 +11,11 @@ import {
     triggerDelete, 
     triggerOpen,
     triggerCopyPath,
-    triggerCopyName
+    triggerCopyName,
+    triggerCreateFolder,
+    triggerOpenInNewTab
 } from './context-menu.js';
+import { SHORTCUTS, matchesShortcut } from './shortcuts.js';
 
 let overlayEl = null;
 let recentTabsVisible = false;
@@ -134,8 +137,18 @@ function triggerTabCycling(modifier) {
         updateOverlaySelection();
     }
 }
-
 window.addEventListener('blur', cancelTabCycling);
+
+function getSelectedDir() {
+    const tab = getActiveTab();
+    if (!tab || tab.selectedPaths.size !== 1) return null;
+    const path = [...tab.selectedPaths][0];
+    const entry = tab.loadedEntries.find(e => {
+        const fullPath = tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + e.name;
+        return fullPath === path;
+    });
+    return (entry && entry.is_dir) ? path : null;
+}
 
 // Keyboard Shortcuts Router
 export function handleKeyboardShortcuts(e) {
@@ -179,68 +192,67 @@ export function handleKeyboardShortcuts(e) {
 
     if (document.activeElement.tagName === 'INPUT') return;
 
-    if (e.ctrlKey && e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        openQuickFind();
-    }
-    else if (e.key === 'F3') {
-        e.preventDefault();
-        setSplitView(!state.isSplit);
-    }
-    else if (e.key === 'F4') {
-        e.preventDefault();
-        setQuadView(!state.isQuad);
-    }
-    else if (e.ctrlKey && e.key.toLowerCase() === 'b') {
-        e.preventDefault();
-        const sidebar = document.querySelector('.sidebar');
-        sidebar.classList.toggle('visible');
-    }
-    else if (e.ctrlKey && e.key.toLowerCase() === 't') {
-        e.preventDefault();
-        const tab = getActiveTab();
-        const path = tab ? tab.currentPath : '/';
-        createTab(state.activePane, path);
-    }
-    else if (e.ctrlKey && e.key.toLowerCase() === 'w') {
-        e.preventDefault();
-        const tab = getActiveTab();
-        if (tab) {
-            closeTab(state.activePane, tab.id);
-        }
-    }
-    else if (e.ctrlKey && e.key === 'Tab') {
+    if (e.ctrlKey && e.key === 'Tab') {
         e.preventDefault();
         cycleTabs(e.shiftKey ? -1 : 1);
+        return;
     }
-    else if (e.ctrlKey && e.key.toLowerCase() === 'c') {
-        triggerClipboard('copy');
-    }
-    else if (e.ctrlKey && e.key.toLowerCase() === 'x') {
-        triggerClipboard('cut');
-    }
-    else if (e.ctrlKey && e.key.toLowerCase() === 'v') {
-        triggerPaste();
-    }
-    else if (e.altKey && e.shiftKey && e.key.toLowerCase() === 'c') {
-        e.preventDefault();
-        triggerCopyName();
-    }
-    else if (e.altKey && e.key.toLowerCase() === 'c') {
-        e.preventDefault();
-        triggerCopyPath();
-    }
-    else if (e.key === 'F2') {
-        triggerRename();
-    }
-    else if (e.key === 'Delete') {
-        triggerDelete();
-    }
-    else if (e.key === 'Backspace') {
-        navigatePaneUp(state.activePane);
-    }
-    else if (e.key === 'Enter') {
-        triggerOpen();
+
+    const handlers = {
+        'quick-find': () => openQuickFind(),
+        'split-view': () => setSplitView(!state.isSplit),
+        'quad-view': () => setQuadView(!state.isQuad),
+        'toggle-sidebar': () => {
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) sidebar.classList.toggle('visible');
+        },
+        'new-tab': () => {
+            const tab = getActiveTab();
+            const path = tab ? tab.currentPath : '/';
+            createTab(state.activePane, path);
+        },
+        'close-tab': () => {
+            const tab = getActiveTab();
+            if (tab) closeTab(state.activePane, tab.id);
+        },
+        'copy': () => triggerClipboard('copy'),
+        'cut': () => triggerClipboard('cut'),
+        'paste': () => triggerPaste(),
+        'copy-name': () => triggerCopyName(),
+        'copy-path': () => triggerCopyPath(),
+        'open-in-new-tab': () => {
+            if (getSelectedDir()) triggerOpenInNewTab();
+        },
+        'cut-inside': () => {
+            if (getSelectedDir()) triggerClipboard('cut', true);
+        },
+        'copy-inside': () => {
+            if (getSelectedDir()) triggerClipboard('copy', true);
+        },
+        'paste-inside': () => {
+            const dir = getSelectedDir();
+            if (dir) triggerPaste(dir);
+        },
+        'rename': () => triggerRename(),
+        'delete': () => triggerDelete(),
+        'navigate-up': () => navigatePaneUp(state.activePane),
+        'open': () => triggerOpen(),
+        'create-folder': () => triggerCreateFolder()
+    };
+
+    const NO_PREVENT_DEFAULT = ['copy', 'cut', 'paste', 'rename', 'delete', 'navigate-up', 'open'];
+
+    for (const [action, shortcutStr] of Object.entries(SHORTCUTS)) {
+        if (matchesShortcut(e, shortcutStr)) {
+            if (!NO_PREVENT_DEFAULT.includes(action)) {
+                e.preventDefault();
+            }
+            const handler = handlers[action];
+            if (handler) {
+                handler();
+            }
+            return;
+        }
     }
 }
 
