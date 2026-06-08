@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -521,7 +522,11 @@ func openWithDefaultApp(path string) error {
 func writeToSystemClipboard(paths []string) {
 	var uris []string
 	for _, p := range paths {
-		uris = append(uris, "file://"+p)
+		u := &url.URL{
+			Scheme: "file",
+			Path:   p,
+		}
+		uris = append(uris, u.String())
 	}
 	data := strings.Join(uris, "\n")
 
@@ -586,6 +591,9 @@ func parseURIList(data string) []string {
 		}
 		if strings.HasPrefix(line, "file://") {
 			p := strings.TrimPrefix(line, "file://")
+			if decoded, err := url.PathUnescape(p); err == nil {
+				p = decoded
+			}
 			paths = append(paths, filepath.Clean(p))
 		}
 	}

@@ -181,3 +181,15 @@ func TestHandlePasteInside(t *testing.T) {
 	}
 }
 
+func TestParseURIListPercentDecoding(t *testing.T) {
+	data := "file:///media/jang/exhdd/Kontakt/Evolution%20Rock%20Standard%201.3.0%20%5BOrange%20Tree%20Samples%5D/Samples/Evolution%20Rock%20Standard_0/Samples/Bridge_SwoopUp_rr2.flac\n"
+	expected := "/media/jang/exhdd/Kontakt/Evolution Rock Standard 1.3.0 [Orange Tree Samples]/Samples/Evolution Rock Standard_0/Samples/Bridge_SwoopUp_rr2.flac"
+	got := parseURIList(data)
+	if len(got) != 1 {
+		t.Fatalf("Expected 1 path, got %d", len(got))
+	}
+	if got[0] != filepath.Clean(expected) {
+		t.Errorf("Expected %q, got %q", expected, got[0])
+	}
+}
+
