@@ -221,15 +221,19 @@ export function handleKeyboardShortcuts(e) {
         'copy-name': () => triggerCopyName(),
         'copy-path': () => triggerCopyPath(),
         'open-in-new-tab': () => {
+            e.preventDefault();
             if (getSelectedDir()) triggerOpenInNewTab();
         },
         'cut-inside': () => {
+            e.preventDefault();
             if (getSelectedDir()) triggerClipboard('cut', true);
         },
         'copy-inside': () => {
+            e.preventDefault();
             if (getSelectedDir()) triggerClipboard('copy', true);
         },
         'paste-inside': () => {
+            e.preventDefault();
             const dir = getSelectedDir();
             if (dir) triggerPaste(dir);
         },

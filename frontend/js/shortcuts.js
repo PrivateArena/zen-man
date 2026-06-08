@@ -8,7 +8,7 @@ export const SHORTCUTS = {
     'copy': 'Ctrl+C',
     'copy-path': 'Alt+Shift+C',
     'copy-name': 'Ctrl+Alt+C',
-    'open-in-new-tab': 'Ctrl+T',
+    'open-in-new-tab': 'Alt+T',
     'cut-inside': 'Alt+X',
     'copy-inside': 'Alt+C',
     'paste-inside': 'Alt+V',
