@@ -9,6 +9,42 @@ export function initNavigation(renderTabs, autoSaveCallback) {
     _autoSaveCallback = autoSaveCallback || null;
 }
 
+function getSelectedIndex(tab, selectedPath) {
+    let virtualRows = [];
+    if (tab.flatViewMode === 'grouped') {
+        let currentGroup = null;
+        const collapsedFileGroups = tab.collapsedFileGroups || new Set();
+        
+        tab.loadedEntries.forEach(entry => {
+            const relPath = entry.rel_path || '';
+            const lastSlash = relPath.lastIndexOf('/');
+            const parentDir = lastSlash !== -1 ? relPath.substring(0, lastSlash) : '.';
+            
+            if (parentDir !== currentGroup) {
+                currentGroup = parentDir;
+                virtualRows.push({ type: 'header', path: currentGroup });
+            }
+            
+            const isCollapsed = collapsedFileGroups.has(currentGroup);
+            if (!isCollapsed) {
+                virtualRows.push({ type: 'file', entry: entry });
+            }
+        });
+    } else {
+        tab.loadedEntries.forEach(entry => {
+            virtualRows.push({ type: 'file', entry: entry });
+        });
+    }
+    
+    return virtualRows.findIndex(row => {
+        if (row.type !== 'file') return false;
+        const entry = row.entry;
+        const entryPathSuffix = entry.rel_path || entry.name;
+        const fullPath = tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + entryPathSuffix;
+        return fullPath === selectedPath;
+    });
+}
+
 // Navigation helpers
 export async function navigateTo(path, recordHistory = true, paneId = state.activePane) {
     const pane = state.panes[paneId];
@@ -19,6 +55,25 @@ export async function navigateTo(path, recordHistory = true, paneId = state.acti
     if (!tab) {
         pane.isLoading = false;
         return;
+    }
+
+    const oldPath = tab.currentPath;
+    if (oldPath && tab.selectedPaths.size > 0) {
+        tab.pathSelections = tab.pathSelections || {};
+        tab.pathSelections[oldPath] = new Set(tab.selectedPaths);
+    }
+
+    // Determine if we are going up or back to an ancestor folder
+    let restoredSelection = null;
+    if (oldPath && oldPath !== path) {
+        const parent = path.endsWith('/') ? path : path + '/';
+        if (oldPath.startsWith(parent) || path === '/') {
+            const relative = path === '/' ? oldPath.slice(1) : oldPath.slice(parent.length);
+            const firstSegment = relative.split('/')[0];
+            if (firstSegment) {
+                restoredSelection = path === '/' ? '/' + firstSegment : path + (path.endsWith('/') ? '' : '/') + firstSegment;
+            }
+        }
     }
 
     const infoEl = getPaneDom(paneId).querySelector('.status-info');
@@ -50,6 +105,14 @@ export async function navigateTo(path, recordHistory = true, paneId = state.acti
         tab.nextCursor = data.cursor || '';
         tab.isLoaded = true;
 
+        tab.selectedPaths.clear();
+        if (restoredSelection) {
+            tab.selectedPaths.add(restoredSelection);
+        } else if (tab.pathSelections && tab.pathSelections[data.path]) {
+            tab.pathSelections[data.path].forEach(p => tab.selectedPaths.add(p));
+        }
+        updateSelectionUI(paneId);
+
         if (recordHistory) {
             pushPaneHistory(paneId, tab.currentPath);
         } else {
@@ -63,8 +126,30 @@ export async function navigateTo(path, recordHistory = true, paneId = state.acti
         if (_autoSaveCallback) _autoSaveCallback();
         
         const fileListEl = getPaneDom(paneId).querySelector('.file-list');
-        fileListEl.scrollTop = 0;
+        if (tab.selectedPaths.size > 0 && tab.viewMode === 'list') {
+            const firstSelectedPath = [...tab.selectedPaths][0];
+            const selectedIdx = getSelectedIndex(tab, firstSelectedPath);
+            if (selectedIdx !== -1) {
+                const topOffset = selectedIdx * 40;
+                const containerHeight = fileListEl.clientHeight || 500;
+                fileListEl.scrollTop = Math.max(0, topOffset - containerHeight / 2 + 20);
+            }
+        } else {
+            fileListEl.scrollTop = 0;
+        }
+
         renderFiles(paneId);
+
+        if (tab.selectedPaths.size > 0 && tab.viewMode !== 'list') {
+            const firstSelectedPath = [...tab.selectedPaths][0];
+            const fileItems = fileListEl.querySelectorAll('.file-item');
+            for (const item of fileItems) {
+                if (item.getAttribute('data-path') === firstSelectedPath) {
+                    item.scrollIntoView({ block: 'nearest' });
+                    break;
+                }
+            }
+        }
 
         infoEl.textContent = `${tab.loadedEntries.length} items`;
     } catch (err) {

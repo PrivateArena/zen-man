@@ -25,6 +25,7 @@ export function createTab(paneId, path = '', group = '', color = '', name = 'Loa
         history: path ? [path] : [],
         historyIndex: path ? 0 : -1,
         selectedPaths: new Set(),
+        pathSelections: {},
         viewMode: 'list',
         flatViewMode: null, // null | 'mixed' | 'mixed-no-folders' | 'grouped'
         collapsedFileGroups: new Set(), // Set of parent paths collapsed in grouped flat view
