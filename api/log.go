@@ -27,6 +27,7 @@ const (
 	ActionDelete    ActionType = 4 // PERMANENT — SSD cannot recover, never reversible
 	ActionRename    ActionType = 5 // file renamed in same directory — reversible
 	ActionMkdir     ActionType = 6 // new empty directory created — reversible if still empty
+	ActionChmod     ActionType = 7 // change file permissions
 )
 
 // StatusType tracks the lifecycle of a log record.
@@ -44,6 +45,7 @@ var actionNames = map[ActionType]string{
 	ActionDelete:    "delete",
 	ActionRename:    "rename",
 	ActionMkdir:     "mkdir",
+	ActionChmod:     "chmod",
 }
 
 // ActionRecord is the decoded, in-memory form of one log entry.

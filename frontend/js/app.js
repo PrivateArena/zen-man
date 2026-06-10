@@ -10,7 +10,8 @@ import {
 import { 
     initFileList, 
     renderFilesListVirtual, 
-    updateSelectionUI 
+    updateSelectionUI,
+    renderFiles
 } from './file-list.js';
 import { 
     initNavigation, 
@@ -87,10 +88,90 @@ function setupEventListeners() {
         document.getElementById(`pane-${paneId}`).addEventListener('contextmenu', (e) => handlePaneContextMenu(e, paneId));
     });
 
+    // Right-click hold for calculating directory size
+    const indicator = new ProgressIndicator();
+    let holdTimer = null;
+    let isHoldTriggered = false;
+    const HOLD_DURATION = 1500; // 1.5 seconds
+
+    document.addEventListener('mousedown', (e) => {
+        if (e.button !== 2) return;
+        const item = e.target.closest('.file-item');
+        if (item && item.getAttribute('data-dir') === 'true') {
+            const path = item.getAttribute('data-path');
+            isHoldTriggered = false;
+            indicator.show(e.clientX, e.clientY, HOLD_DURATION);
+            holdTimer = setTimeout(() => {
+                isHoldTriggered = true;
+                indicator.hide();
+                
+                const sizeEl = item.querySelector('.file-size');
+                if (sizeEl) {
+                    sizeEl.innerHTML = '<span class="folder-size-loading"></span>';
+                }
+                
+                fetch(`/api/dir/size?path=${encodeURIComponent(path)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            Object.keys(state.panes).forEach(paneId => {
+                                const pane = state.panes[paneId];
+                                pane.tabs.forEach(t => {
+                                    t.loadedEntries.forEach(entry => {
+                                        const fullPath = t.currentPath + (t.currentPath.endsWith('/') ? '' : '/') + entry.name;
+                                        if (fullPath === path) {
+                                            entry.size = data.size;
+                                            entry.files_count = data.files_count;
+                                        }
+                                    });
+                                });
+                            });
+                            renderFiles(state.activePane);
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        if (sizeEl) sizeEl.textContent = 'Error';
+                    });
+            }, HOLD_DURATION);
+        }
+    }, true);
+
+    document.addEventListener('mousemove', (e) => {
+        if (holdTimer) {
+            indicator.updatePosition(e.clientX, e.clientY);
+        }
+    }, true);
+
+    document.addEventListener('mouseup', (e) => {
+        if (e.button === 2) {
+            clearTimeout(holdTimer);
+            holdTimer = null;
+            if (!isHoldTriggered) {
+                indicator.hide();
+            }
+        }
+    }, true);
+
+    document.addEventListener('contextmenu', (e) => {
+        if (isHoldTriggered) {
+            e.preventDefault();
+            e.stopPropagation();
+            isHoldTriggered = false;
+        }
+    }, true);
+
     // Hide context menu on click anywhere — use capture so file-list's stopPropagation doesn't block it
     document.addEventListener('click', () => {
         document.getElementById('context-menu').style.display = 'none';
     }, { capture: true });
+
+    // Close views dropdowns on click outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.views-dropdown')) {
+            document.querySelectorAll('.views-dropdown').forEach(d => d.classList.remove('open'));
+        }
+    });
 
     // Global keyboard shortcuts
     document.addEventListener('keydown', handleKeyboardShortcuts);
@@ -99,34 +180,75 @@ function setupEventListeners() {
 function setupPaneListeners(paneId) {
     const paneEl = getPaneDom(paneId);
     
-    // Flat View Toggle
-    const flatSelect = paneEl.querySelector('.select-flat-view');
-    if (flatSelect) {
-        flatSelect.addEventListener('change', () => {
+    // Views Dropdown Toggle
+    const dropdown = paneEl.querySelector('.views-dropdown');
+    const dropdownBtn = paneEl.querySelector('.views-dropdown-btn');
+    if (dropdown && dropdownBtn) {
+        dropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Close other open dropdowns
+            document.querySelectorAll('.views-dropdown').forEach(d => {
+                if (d !== dropdown) d.classList.remove('open');
+            });
+            dropdown.classList.toggle('open');
+        });
+    }
+
+    // Flat View Radio Options
+    const flatRadios = paneEl.querySelectorAll(`input[name="flat-view-${paneId}"]`);
+    flatRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
             const pane = state.panes[paneId];
             const tab = pane.tabs.find(t => t.id === pane.activeTabId);
             if (tab) {
-                const mode = flatSelect.value === 'none' ? null : flatSelect.value;
+                const mode = radio.value === 'none' ? null : radio.value;
                 tab.flatViewMode = mode;
                 if (!tab.collapsedFileGroups) {
                     tab.collapsedFileGroups = new Set();
                 } else {
                     tab.collapsedFileGroups.clear();
                 }
+
+                // If Flat View is enabled, disable Grid View (as it only works with Normal View)
+                const gridChk = paneEl.querySelector('.chk-grid-view');
+                const nestedGridWrapper = paneEl.querySelector('.nested-grid-view');
+                if (mode) {
+                    tab.viewMode = 'list';
+                    if (gridChk) {
+                        gridChk.checked = false;
+                        gridChk.disabled = true;
+                    }
+                    if (nestedGridWrapper) {
+                        nestedGridWrapper.classList.add('disabled');
+                    }
+                } else {
+                    if (gridChk) {
+                        gridChk.disabled = false;
+                        gridChk.checked = tab.viewMode === 'grid';
+                    }
+                    if (nestedGridWrapper) {
+                        nestedGridWrapper.classList.remove('disabled');
+                    }
+                }
+
                 import('./navigation.js').then(m => m.navigateTo(tab.currentPath, false, paneId));
+            }
+            if (dropdown) dropdown.classList.remove('open');
+        });
+    });
+
+    // Grid View Toggle (Checkbox)
+    const gridChk = paneEl.querySelector('.chk-grid-view');
+    if (gridChk) {
+        gridChk.addEventListener('change', () => {
+            const pane = state.panes[paneId];
+            const tab = pane.tabs.find(t => t.id === pane.activeTabId);
+            if (tab) {
+                const nextMode = gridChk.checked ? 'grid' : 'list';
+                import('./navigation.js').then(m => m.setPaneViewMode(paneId, nextMode));
             }
         });
     }
-    
-    // View Toggles (Cycle Mode)
-    paneEl.querySelector('.btn-cycle-view').addEventListener('click', () => {
-        const pane = state.panes[paneId];
-        const tab = pane.tabs.find(t => t.id === pane.activeTabId);
-        if (tab) {
-            const nextMode = tab.viewMode === 'list' ? 'grid' : 'list';
-            import('./navigation.js').then(m => m.setPaneViewMode(paneId, nextMode));
-        }
-    });
     
     // Navigation Buttons
     paneEl.querySelector('.nav-back').addEventListener('click', () => navigatePaneHistory(paneId, -1));
@@ -190,4 +312,36 @@ function setupPaneListeners(paneId) {
             renderFilesListVirtual(paneId);
         }
     });
+}
+
+class ProgressIndicator {
+    constructor(size = 40, strokeWidth = 4) {
+        this.size = size; this.center = size / 2;
+        this.radius = (size / 2) - strokeWidth;
+        this.circumference = 2 * Math.PI * this.radius;
+        this.el = document.createElement('div');
+        this.el.className = 'hold-progress-indicator';
+        this.el.style.cssText = `position:fixed; pointer-events:none; z-index:100000; display:none; opacity:0; transition: opacity 0.1s;`;
+        this.el.innerHTML = `
+            <svg width="${size}" height="${size}">
+                <circle cx="${this.center}" cy="${this.center}" r="${this.radius}"
+                        stroke="#ffcc00" stroke-width="${strokeWidth}" fill="transparent"
+                        stroke-dasharray="${this.circumference}" stroke-dashoffset="${this.circumference}"
+                        stroke-linecap="round" transform="rotate(-90 ${this.center} ${this.center})"/>
+            </svg>`;
+        (document.body || document.documentElement).appendChild(this.el);
+        this.circle = this.el.querySelector('circle');
+    }
+    show(x, y, duration) {
+        this.updatePosition(x, y); this.el.style.display = 'block'; this.el.style.opacity = '1';
+        this.circle.style.transition = 'none'; this.circle.style.strokeDashoffset = this.circumference;
+        this.circle.style.stroke = "#ffcc00"; this.circle.getBoundingClientRect();
+        this.circle.style.transition = `stroke-dashoffset ${duration}ms linear, stroke ${duration}ms linear`;
+        this.circle.style.strokeDashoffset = '0'; this.circle.style.stroke = "#30fb3d";
+    }
+    hide() {
+        this.el.style.opacity = '0';
+        setTimeout(() => { if (this.el.style.opacity === '0') this.el.style.display = 'none'; }, 100);
+    }
+    updatePosition(x, y) { this.el.style.left = `${x - this.center}px`; this.el.style.top = `${y - this.center}px`; }
 }

@@ -263,15 +263,9 @@ export function setPaneViewMode(paneId, mode) {
     tab.viewMode = mode;
     const paneEl = getPaneDom(paneId);
     
-    const cycleBtn = paneEl.querySelector('.btn-cycle-view');
-    if (cycleBtn) {
-        if (mode === 'list') {
-            cycleBtn.innerHTML = '&#9776;'; // Show list icon (☰) when in list mode
-            cycleBtn.title = 'Switch to Grid View';
-        } else {
-            cycleBtn.innerHTML = '&#9830;'; // Show grid icon (♦) when in grid mode
-            cycleBtn.title = 'Switch to List View';
-        }
+    const gridChk = paneEl.querySelector('.chk-grid-view');
+    if (gridChk) {
+        gridChk.checked = (mode === 'grid');
     }
     
     const fileListEl = paneEl.querySelector('.file-list');

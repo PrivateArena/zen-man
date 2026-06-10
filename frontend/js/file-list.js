@@ -15,11 +15,27 @@ export function renderFiles(paneId = state.activePane) {
     const tab = pane.tabs.find(t => t.id === pane.activeTabId);
     if (!tab) return;
 
-    // Sync Flat View dropdown
+    // Sync Flat View inputs in the dropdown
     const paneDom = getPaneDom(paneId);
-    const flatSelect = paneDom.querySelector('.select-flat-view');
-    if (flatSelect) {
-        flatSelect.value = tab.flatViewMode || 'none';
+    const flatMode = tab.flatViewMode || 'none';
+    const radio = paneDom.querySelector(`input[name="flat-view-${paneId}"][value="${flatMode}"]`);
+    if (radio) {
+        radio.checked = true;
+    }
+
+    // Sync Grid View checkbox
+    const gridChk = paneDom.querySelector('.chk-grid-view');
+    const nestedGridWrapper = paneDom.querySelector('.nested-grid-view');
+    if (gridChk) {
+        gridChk.checked = tab.viewMode === 'grid';
+        if (flatMode !== 'none') {
+            gridChk.disabled = true;
+            gridChk.checked = false;
+            if (nestedGridWrapper) nestedGridWrapper.classList.add('disabled');
+        } else {
+            gridChk.disabled = false;
+            if (nestedGridWrapper) nestedGridWrapper.classList.remove('disabled');
+        }
     }
 
     // Toggle flat-view layout class
@@ -140,7 +156,16 @@ export function renderFilesListVirtual(paneId) {
             const icon = entry.is_dir ? '📁' : '📄';
             const iconClass = entry.is_dir ? 'icon-folder' : 'icon-file';
             const isSelected = tab.selectedPaths.has(fullPath) ? 'selected' : '';
-            const sizeStr = entry.is_dir ? '--' : formatSize(entry.size);
+            let sizeStr = '--';
+            if (entry.is_dir) {
+                if (entry.size > 0 || (entry.files_count !== undefined && entry.files_count > 0)) {
+                    sizeStr = formatSize(entry.size) + ` (${entry.files_count} file${entry.files_count === 1 ? '' : 's'})`;
+                } else {
+                    sizeStr = '--';
+                }
+            } else {
+                sizeStr = formatSize(entry.size);
+            }
             const dateStr = formatDate(entry.mod_time);
             const relPathStr = entry.rel_path || '';
 

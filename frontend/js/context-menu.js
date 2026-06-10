@@ -99,6 +99,9 @@ export function showContextMenu(e, targetPath, isDir, isItem) {
                 <span>Rename</span>
                 <span class="context-menu-shortcut">${getShortcutDisplay('rename')}</span>
             </div>
+            <div class="context-menu-item" data-action="chmod">
+                <span>Change Permissions</span>
+            </div>
             <div class="context-menu-item" data-action="delete" style="color: var(--danger-color);">
                 <span>Delete</span>
                 <span class="context-menu-shortcut">${getShortcutDisplay('delete')}</span>
@@ -372,6 +375,38 @@ export async function triggerRename() {
     }
 }
 
+export async function triggerChmod() {
+    const tab = getActiveTab();
+    if (!tab || tab.selectedPaths.size === 0) return;
+
+    const promptMsg = `Changing permissions for ${tab.selectedPaths.size} item(s).
+Common Permissions:
+  755 - Read/Write/Exec for owner, Read/Exec for others (Standard for folders & scripts)
+  644 - Read/Write for owner, Read-only for others (Standard for files)
+  700 - Full access for owner only (Private folders & scripts)
+  600 - Read/Write for owner only (Private configuration & keys)
+  777 - Full public access (Insecure)
+
+Enter 3 or 4-digit octal permissions:`;
+
+    const newMode = prompt(promptMsg, '755');
+    if (newMode) {
+        if (!/^[0-7]{3,4}$/.test(newMode)) {
+            alert('Invalid permission format. Please enter a 3 or 4-digit octal number (e.g., 755 or 644).');
+            return;
+        }
+
+        try {
+            const data = await executeFileOp('chmod', [...tab.selectedPaths], null, newMode);
+            if (data.status === 'success') {
+                import('./navigation.js').then(m => m.navigateTo(tab.currentPath, false, state.activePane));
+            }
+        } catch (err) {
+            alert(`Failed to change permissions: ${err.message}`);
+        }
+    }
+}
+
 export async function triggerDelete() {
     const tab = getActiveTab();
     if (!tab || tab.selectedPaths.size === 0) return;
@@ -516,6 +551,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 else triggerCopyName();
             } else if (action === 'rename') {
                 triggerRename();
+            } else if (action === 'chmod') {
+                triggerChmod();
             } else if (action === 'delete') {
                 triggerDelete();
             } else if (action === 'paste') {

@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -87,6 +88,8 @@ func HandleFileOp(w http.ResponseWriter, r *http.Request) {
 		handleRename(w, req.Sources, req.Name)
 	case "mkdir":
 		handleMkdir(w, req.Dest, req.Name)
+	case "chmod":
+		handleChmod(w, req.Sources, req.Name)
 	default:
 		http.Error(w, fmt.Sprintf(`{"error": "Unsupported operation: %s"}`, req.Op), http.StatusBadRequest)
 	}
@@ -807,4 +810,35 @@ func isSubdir(parent, child string) bool {
 	}
 	parentWithSlash := parent + string(filepath.Separator)
 	return strings.HasPrefix(child, parentWithSlash)
+}
+
+func handleChmod(w http.ResponseWriter, sources []string, modeStr string) {
+	if len(sources) == 0 || modeStr == "" {
+		http.Error(w, `{"error": "Invalid chmod arguments"}`, http.StatusBadRequest)
+		return
+	}
+
+	modeNum, err := strconv.ParseUint(modeStr, 8, 32)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Invalid permission mode: %v"}`, err), http.StatusBadRequest)
+		return
+	}
+
+	mode := os.FileMode(modeNum)
+	var lastErr error
+	for _, src := range sources {
+		if err := os.Chmod(src, mode); err != nil {
+			lastErr = err
+		}
+	}
+
+	if lastErr != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Chmod failed: %v"}`, lastErr), http.StatusInternalServerError)
+		return
+	}
+
+	GetLog().Append(ActionChmod, sources, "", modeStr)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status": "success"}`))
 }

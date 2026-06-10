@@ -15,13 +15,14 @@ import (
 
 // FileEntry represents a single file or directory item returned to the client
 type FileEntry struct {
-	Name    string `json:"name"`
-	IsDir   bool   `json:"is_dir"`
-	Size    int64  `json:"size"`
-	ModTime int64  `json:"mod_time"` // Unix timestamp
-	Mode    string `json:"mode"`
-	RelPath string `json:"rel_path,omitempty"`
-	Depth   int    `json:"depth,omitempty"`
+	Name       string `json:"name"`
+	IsDir      bool   `json:"is_dir"`
+	Size       int64  `json:"size"`
+	ModTime    int64  `json:"mod_time"` // Unix timestamp
+	Mode       string `json:"mode"`
+	RelPath    string `json:"rel_path,omitempty"`
+	Depth      int    `json:"depth,omitempty"`
+	FilesCount int64  `json:"files_count,omitempty"`
 }
 
 // DirResponse represents the paginated directory contents payload
@@ -245,14 +246,24 @@ func HandleReadDirectory(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		var filesCount int64 = 0
+		if entry.IsDir() {
+			dirPath := filepath.Join(resolvedPath, entry.Name())
+			if cachedSize, cachedCount, ok := GetCachedDirSize(dirPath); ok {
+				size = cachedSize
+				filesCount = cachedCount
+			}
+		}
+
 		fileEntries = append(fileEntries, FileEntry{
-			Name:    entry.Name(),
-			IsDir:   entry.IsDir(),
-			Size:    size,
-			ModTime: modTime,
-			Mode:    mode,
-			RelPath: entry.relPath,
-			Depth:   entry.depth,
+			Name:       entry.Name(),
+			IsDir:      entry.IsDir(),
+			Size:       size,
+			ModTime:    modTime,
+			Mode:       mode,
+			RelPath:    entry.relPath,
+			Depth:      entry.depth,
+			FilesCount: filesCount,
 		})
 	}
 
@@ -304,4 +315,107 @@ func sortEntries(entries []sortableEntry, sortBy string, sortOrder string) {
 			return nI > nJ
 		}
 	})
+}
+
+// HandleDirSize calculates the total size and file count of a directory, caches it, and returns the result
+func HandleDirSize(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "*")
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	pathQuery := r.URL.Query().Get("path")
+	resolvedPath, err := ResolvePath(pathQuery)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Invalid path: %v"}`, err), http.StatusBadRequest)
+		return
+	}
+
+	info, err := os.Stat(resolvedPath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Path not found: %v"}`, err), http.StatusNotFound)
+		return
+	}
+	if !info.IsDir() {
+		http.Error(w, fmt.Sprintf(`{"error": "Path is not a directory"}`), http.StatusBadRequest)
+		return
+	}
+
+	size, fileCount, err := CalculateDirSize(resolvedPath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to calculate folder size: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":      "success",
+		"path":        resolvedPath,
+		"size":        size,
+		"files_count": fileCount,
+	})
+}
+
+// CalculateDirSize calculates the size and count of files inside a folder recursively, caching all sub-folders
+func CalculateDirSize(dirPath string) (int64, int64, error) {
+	root := filepath.Clean(dirPath)
+
+	stats := make(map[string]DirSizeInfo)
+	stats[root] = DirSizeInfo{}
+
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // Skip read/permission errors
+		}
+		if d.IsDir() {
+			if _, exists := stats[path]; !exists {
+				stats[path] = DirSizeInfo{}
+			}
+			return nil
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		fileSize := info.Size()
+
+		curr := filepath.Dir(path)
+		for {
+			itemInfo := stats[curr]
+			itemInfo.Size += fileSize
+			itemInfo.FileCount++
+			stats[curr] = itemInfo
+
+			if curr == root {
+				break
+			}
+			parent := filepath.Dir(curr)
+			if parent == curr {
+				break
+			}
+			curr = parent
+		}
+		return nil
+	})
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	// Save all collected sub-folder statistics to the cache database in a batch transaction
+	if err := SaveCachedDirSizesBatch(stats); err != nil {
+		fmt.Fprintf(os.Stderr, "[zen-man] failed to batch cache dir sizes: %v\n", err)
+	}
+
+	rootInfo := stats[root]
+	return rootInfo.Size, rootInfo.FileCount, nil
 }

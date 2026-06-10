@@ -36,6 +36,11 @@ func main() {
 	portFlag := flag.Int("port", 0, "port to run on (default: auto-assign free port)")
 	flag.Parse()
 
+	// Initialize SQLite Database
+	if err := api.InitDB(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
 	var fileServer http.Handler
 
 	if *devMode {
@@ -57,6 +62,7 @@ func main() {
 
 	// API Handlers (wrapped or bound in api subpackage)
 	mux.HandleFunc("/api/dir", api.HandleReadDirectory)
+	mux.HandleFunc("/api/dir/size", api.HandleDirSize)
 	mux.HandleFunc("/api/op", api.HandleFileOp)
 	mux.HandleFunc("/api/places", api.HandlePlaces)
 	mux.HandleFunc("/api/workspaces", api.HandleWorkspaces)

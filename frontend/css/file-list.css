@@ -197,23 +197,6 @@
 }
 
 /* Flat View styling */
-.select-flat-view {
-    background-color: var(--bg-main);
-    border: 1px solid var(--border-color);
-    color: var(--text-main);
-    padding: 3px 6px;
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 0.8rem;
-    outline: none;
-    cursor: pointer;
-    margin-right: 8px;
-    transition: border-color 0.2s;
-}
-
-.select-flat-view:hover {
-    border-color: var(--accent-color);
-}
 
 .col-relpath,
 .file-item .file-relpath {
