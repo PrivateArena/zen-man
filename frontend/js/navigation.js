@@ -1,5 +1,5 @@
 import { state, getPaneDom, getActiveTab } from './state.js';
-import { renderFiles, updateSelectionUI } from './file-list.js';
+import { renderFiles, updateSelectionUI, renderFilesListVirtual } from './file-list.js';
 
 let renderTabsCallback = null;
 let _autoSaveCallback = null;
@@ -126,27 +126,27 @@ export async function navigateTo(path, recordHistory = true, paneId = state.acti
         if (_autoSaveCallback) _autoSaveCallback();
         
         const fileListEl = getPaneDom(paneId).querySelector('.file-list');
-        if (tab.selectedPaths.size > 0 && tab.viewMode === 'list') {
-            const firstSelectedPath = [...tab.selectedPaths][0];
-            const selectedIdx = getSelectedIndex(tab, firstSelectedPath);
-            if (selectedIdx !== -1) {
-                const topOffset = selectedIdx * 40;
-                const containerHeight = fileListEl.clientHeight || 500;
-                fileListEl.scrollTop = Math.max(0, topOffset - containerHeight / 2 + 20);
-            }
-        } else {
-            fileListEl.scrollTop = 0;
-        }
+        fileListEl.scrollTop = 0;
 
         renderFiles(paneId);
 
-        if (tab.selectedPaths.size > 0 && tab.viewMode !== 'list') {
+        if (tab.selectedPaths.size > 0) {
             const firstSelectedPath = [...tab.selectedPaths][0];
-            const fileItems = fileListEl.querySelectorAll('.file-item');
-            for (const item of fileItems) {
-                if (item.getAttribute('data-path') === firstSelectedPath) {
-                    item.scrollIntoView({ block: 'nearest' });
-                    break;
+            if (tab.viewMode === 'list') {
+                const selectedIdx = getSelectedIndex(tab, firstSelectedPath);
+                if (selectedIdx !== -1) {
+                    const topOffset = selectedIdx * 40;
+                    const containerHeight = fileListEl.clientHeight || 500;
+                    fileListEl.scrollTop = Math.max(0, topOffset - containerHeight / 2 + 20);
+                    renderFilesListVirtual(paneId);
+                }
+            } else {
+                const fileItems = fileListEl.querySelectorAll('.file-item');
+                for (const item of fileItems) {
+                    if (item.getAttribute('data-path') === firstSelectedPath) {
+                        item.scrollIntoView({ block: 'center', inline: 'nearest' });
+                        break;
+                    }
                 }
             }
         }
