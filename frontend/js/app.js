@@ -33,7 +33,7 @@ import {
     triggerDeleteWorkspace, 
     handleWorkspaceChange,
     scheduleAutoSave,
-    restoreDefaultWorkspace
+    restoreLastWorkspace
 } from './workspace.js';
 import { handlePaneContextMenu } from './context-menu.js';
 import { handleKeyboardShortcuts } from './keyboard.js';
@@ -52,11 +52,10 @@ initQuickFind(navigateTo);
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     loadSidebarPlaces();
-    loadWorkspaces();
     initCustomActions();
     
-    // Restore previous default session (or create blank tab if none)
-    restoreDefaultWorkspace();
+    // Restore previous active session (or create blank tab if none)
+    restoreLastWorkspace();
 });
 
 function setupEventListeners() {

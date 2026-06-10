@@ -175,6 +175,42 @@ export async function restoreDefaultWorkspace() {
     createTab('left', '');
 }
 
+// Restores the last active workspace from localStorage on app startup
+export async function restoreLastWorkspace() {
+    await loadWorkspaces();
+    
+    const lastActive = localStorage.getItem('last_active_workspace') || 'default';
+    const select = document.getElementById('workspace-select');
+    if (select) {
+        const optionExists = Array.from(select.options).some(opt => opt.value === lastActive);
+        if (optionExists) {
+            select.value = lastActive;
+        } else {
+            select.value = 'default';
+            localStorage.setItem('last_active_workspace', 'default');
+        }
+    }
+    
+    const name = select ? select.value : 'default';
+    try {
+        const response = await fetch('/api/workspaces', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'restore', name })
+        });
+        if (!response.ok) throw new Error('No saved session');
+        const data = await response.json();
+        const s = data.session;
+        if (s && (s.left_tabs?.length > 0 || s.right_tabs?.length > 0 || s.left_bottom_tabs?.length > 0 || s.right_bottom_tabs?.length > 0)) {
+            await restoreSession(s);
+            return;
+        }
+    } catch (_) {
+        // Fall back / starting fresh
+    }
+    createTab('left', '');
+}
+
 export function showWorkspaceCreatePanel() {
     document.getElementById('workspace-select').style.display = 'none';
     document.getElementById('workspace-new-btn').style.display = 'none';
@@ -217,6 +253,7 @@ export async function triggerSaveWorkspace() {
         if (response.ok) {
             await loadWorkspaces();
             document.getElementById('workspace-select').value = name;
+            localStorage.setItem('last_active_workspace', name);
             hideWorkspaceCreatePanel();
         }
     } catch (err) {
@@ -241,6 +278,12 @@ export async function triggerDeleteWorkspace() {
             });
             if (response.ok) {
                 await loadWorkspaces();
+                const lastActive = localStorage.getItem('last_active_workspace');
+                if (lastActive === name) {
+                    localStorage.setItem('last_active_workspace', 'default');
+                    const selectEl = document.getElementById('workspace-select');
+                    if (selectEl) selectEl.value = 'default';
+                }
             }
         } catch (err) {
             console.error(err);
@@ -251,6 +294,8 @@ export async function triggerDeleteWorkspace() {
 export async function handleWorkspaceChange() {
     const select = document.getElementById('workspace-select');
     const name = select.value;
+
+    localStorage.setItem('last_active_workspace', name);
 
     if (name === 'default') {
         // Restore saved default session (may be empty on first run)
