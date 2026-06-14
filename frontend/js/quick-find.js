@@ -1,13 +1,14 @@
 import { state, getActiveTab, getPaneDom, getActivePane } from './state.js';
 import { formatSize } from './utils.js';
-import { openFile } from './api.js';
-import { updateItemSelectionStyles, updateSelectionUI } from './file-list.js';
+import { openFile, executeFileOp } from './api.js';
+import { updateItemSelectionStyles, updateSelectionUI, updateClipboardUI, renderFiles } from './file-list.js';
 
 let navigateToCallback = null;
 let activeAbortController = null;
 let debounceTimeout = null;
 let searchResults = [];
 let selectedIndex = -1;
+let isSearchCapped = false;
 
 export function initQuickFind(navigateTo) {
     navigateToCallback = navigateTo;
@@ -30,7 +31,9 @@ export function openQuickFind() {
     input.value = '';
     searchResults = [];
     selectedIndex = -1;
+    isSearchCapped = false;
     pathLabel.textContent = `Finding in: ${tab.currentPath}`;
+    updateActionButtonsState();
     
     // Clear previous results UI
     const resultsContainer = document.getElementById('quick-find-results');
@@ -71,22 +74,34 @@ function setupModalListeners() {
     const overlay = document.getElementById('quick-find-overlay');
     const input = document.getElementById('quick-find-input');
     const recursiveCheck = document.getElementById('quick-find-recursive');
+    const btnCopy = document.getElementById('quick-find-btn-copy');
+    const btnCut = document.getElementById('quick-find-btn-cut');
+    const btnDelete = document.getElementById('quick-find-btn-delete');
 
     overlay.addEventListener('click', onOverlayClick);
     input.addEventListener('input', onInputChanged);
     input.addEventListener('keydown', onInputKeyDown);
     recursiveCheck.addEventListener('change', onRecursiveToggle);
+    btnCopy.addEventListener('click', onCopyFoundClick);
+    btnCut.addEventListener('click', onCutFoundClick);
+    btnDelete.addEventListener('click', onDeleteFoundClick);
 }
 
 function removeModalListeners() {
     const overlay = document.getElementById('quick-find-overlay');
     const input = document.getElementById('quick-find-input');
     const recursiveCheck = document.getElementById('quick-find-recursive');
+    const btnCopy = document.getElementById('quick-find-btn-copy');
+    const btnCut = document.getElementById('quick-find-btn-cut');
+    const btnDelete = document.getElementById('quick-find-btn-delete');
 
     overlay.removeEventListener('click', onOverlayClick);
     input.removeEventListener('input', onInputChanged);
     input.removeEventListener('keydown', onInputKeyDown);
     recursiveCheck.removeEventListener('change', onRecursiveToggle);
+    btnCopy.removeEventListener('click', onCopyFoundClick);
+    btnCut.removeEventListener('click', onCutFoundClick);
+    btnDelete.removeEventListener('click', onDeleteFoundClick);
 }
 
 function onOverlayClick(e) {
@@ -126,8 +141,10 @@ async function triggerSearch() {
     if (query === '') {
         searchResults = [];
         selectedIndex = -1;
+        isSearchCapped = false;
         resultsContainer.innerHTML = '';
         countLabel.textContent = '';
+        updateActionButtonsState();
         return;
     }
 
@@ -149,7 +166,9 @@ async function triggerSearch() {
         
         searchResults = data.entries || [];
         selectedIndex = searchResults.length > 0 ? 0 : -1;
+        isSearchCapped = data.capped || false;
         renderSearchResults();
+        updateActionButtonsState();
 
         const count = data.total_matched;
         if (data.capped) {
@@ -163,6 +182,9 @@ async function triggerSearch() {
             return;
         }
         console.error(err);
+        searchResults = [];
+        isSearchCapped = false;
+        updateActionButtonsState();
         countLabel.textContent = 'Search failed';
         resultsContainer.innerHTML = `<div class="quick-find-empty">Error running search: ${err.message}</div>`;
     }
@@ -325,5 +347,153 @@ async function executeItemAction(index, mode) {
                 }, 150);
             }
         }
+    }
+}
+
+function updateActionButtonsState() {
+    const hasResults = searchResults && searchResults.length > 0;
+    const btnCopy = document.getElementById('quick-find-btn-copy');
+    const btnCut = document.getElementById('quick-find-btn-cut');
+    const btnDelete = document.getElementById('quick-find-btn-delete');
+    
+    if (btnCopy) btnCopy.disabled = !hasResults;
+    if (btnCut) btnCut.disabled = !hasResults;
+    if (btnDelete) btnDelete.disabled = !hasResults;
+}
+
+async function resolvePathsForAction() {
+    const tab = getActiveTab();
+    if (!tab || !searchResults || searchResults.length === 0) return [];
+
+    if (!isSearchCapped) {
+        return searchResults.map(item => {
+            return tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + item.rel_path;
+        });
+    }
+
+    const input = document.getElementById('quick-find-input');
+    const query = input.value.trim();
+    const recursive = document.getElementById('quick-find-recursive').checked;
+    const countLabel = document.getElementById('quick-find-count');
+    const prevText = countLabel.textContent;
+    countLabel.textContent = 'Fetching all matches...';
+
+    try {
+        const url = `/api/search?path=${encodeURIComponent(tab.currentPath)}&q=${encodeURIComponent(query)}&recursive=${recursive}&limit=0`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch all matching files: ${response.statusText}`);
+        }
+        const data = await response.json();
+        const fullEntries = data.entries || [];
+        return fullEntries.map(item => {
+            return tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + item.rel_path;
+        });
+    } finally {
+        countLabel.textContent = prevText;
+    }
+}
+
+async function onCopyFoundClick() {
+    await performClipboardFound('copy');
+}
+
+async function onCutFoundClick() {
+    await performClipboardFound('cut');
+}
+
+async function performClipboardFound(op) {
+    const tab = getActiveTab();
+    if (!tab || !searchResults || searchResults.length === 0) return;
+
+    try {
+        const paths = await resolvePathsForAction();
+        if (paths.length === 0) return;
+
+        const data = await executeFileOp(op, paths);
+        let clipboardItems = [];
+        if (data.status === 'success' && data.items) {
+            clipboardItems = data.items;
+        } else {
+            // fallback structure
+            paths.forEach(path => {
+                const name = path.split('/').pop() || path;
+                clipboardItems.push({
+                    name: name,
+                    path: path,
+                    isDir: path.endsWith('/') || !name.includes('.'),
+                    size: null
+                });
+            });
+        }
+
+        state.clipboard = {
+            op: op,
+            items: clipboardItems
+        };
+        
+        updateClipboardUI();
+
+        // Update status bar info
+        const infoEl = getPaneDom(state.activePane).querySelector('.status-info');
+        if (infoEl) {
+            infoEl.textContent = `${op === 'copy' ? 'Copied' : 'Cut'} ${paths.length} found item(s) to clipboard`;
+        }
+
+        closeQuickFind();
+    } catch (err) {
+        alert(`Failed to ${op} found items: ${err.message}`);
+    }
+}
+
+async function onDeleteFoundClick() {
+    const tab = getActiveTab();
+    if (!tab || !searchResults || searchResults.length === 0) return;
+
+    try {
+        const pathsToDelete = await resolvePathsForAction();
+        if (pathsToDelete.length === 0) return;
+
+        const confirmMsg = `Are you sure you want to permanently delete these ${pathsToDelete.length} matched item(s)?`;
+        if (!confirm(confirmMsg)) return;
+
+        await executeFileOp('delete', pathsToDelete);
+
+        const deletedSet = new Set(pathsToDelete);
+        
+        // Remove deleted items from tabs loadedEntries & selectedPaths
+        Object.keys(state.panes).forEach(paneId => {
+            const pane = state.panes[paneId];
+            pane.tabs.forEach(t => {
+                // Remove entries that match deleted paths
+                t.loadedEntries = t.loadedEntries.filter(entry => {
+                    const entryPathSuffix = entry.rel_path || entry.name;
+                    const fullPath = t.currentPath + (t.currentPath.endsWith('/') ? '' : '/') + entryPathSuffix;
+                    return !deletedSet.has(fullPath);
+                });
+                pathsToDelete.forEach(path => t.selectedPaths.delete(path));
+            });
+            
+            const activeTab = pane.tabs.find(t => t.id === pane.activeTabId);
+            if (activeTab) {
+                renderFiles(paneId);
+                updateSelectionUI(paneId);
+                
+                const infoEl = getPaneDom(paneId).querySelector('.status-info');
+                if (infoEl) {
+                    infoEl.textContent = `${activeTab.loadedEntries.length} items`;
+                }
+            }
+        });
+
+        // Update active pane status bar info
+        const infoEl = getPaneDom(state.activePane).querySelector('.status-info');
+        if (infoEl) {
+            infoEl.textContent = `Deleted ${pathsToDelete.length} item(s)`;
+        }
+
+        closeQuickFind();
+    } catch (err) {
+        alert(`Delete failed: ${err.message}`);
     }
 }

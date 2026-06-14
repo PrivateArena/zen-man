@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -72,6 +73,16 @@ func HandleSearch(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var matches []SearchEntry
 	limit := 500
+	limitStr := r.URL.Query().Get("limit")
+	if limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil {
+			if parsedLimit <= 0 {
+				limit = 1000000 // effectively unlimited safety ceiling
+			} else {
+				limit = parsedLimit
+			}
+		}
+	}
 	capped := false
 
 	// Helper to check if name matches all query tokens
