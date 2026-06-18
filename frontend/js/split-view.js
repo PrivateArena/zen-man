@@ -21,6 +21,7 @@ export function setActivePane(paneId) {
     if (updateSelectionUICallback) {
         updateSelectionUICallback();
     }
+    import('./navigation.js').then(m => m.updateDiskSpaceDisplay());
 }
 
 export function updateLayout() {

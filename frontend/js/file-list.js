@@ -666,3 +666,19 @@ export function updateClipboardUI() {
         }
     });
 }
+
+export function selectAll(paneId = state.activePane) {
+    const pane = state.panes[paneId];
+    const tab = pane ? pane.tabs.find(t => t.id === pane.activeTabId) : null;
+    if (!tab) return;
+
+    tab.selectedPaths.clear();
+    const selectablePaths = getOrderedSelectablePaths(tab);
+    selectablePaths.forEach(path => {
+        tab.selectedPaths.add(path);
+    });
+
+    updateItemSelectionStyles(paneId);
+    updateSelectionUI(paneId);
+}
+

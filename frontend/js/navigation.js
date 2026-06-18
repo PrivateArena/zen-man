@@ -152,6 +152,9 @@ export async function navigateTo(path, recordHistory = true, paneId = state.acti
         }
 
         infoEl.textContent = `${tab.loadedEntries.length} items`;
+        if (paneId === state.activePane) {
+            updateDiskSpaceDisplay();
+        }
     } catch (err) {
         console.error(err);
         infoEl.textContent = `Error loading directory`;
@@ -293,3 +296,60 @@ export function disablePaneAddressBarEdit(paneId) {
     paneEl.querySelector('.breadcrumbs').style.display = 'flex';
     paneEl.querySelector('.address-bar').style.display = 'none';
 }
+
+let lastDiskSpacePath = null;
+
+function formatBytes(bytes, decimals = 1) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+export async function updateDiskSpaceDisplay() {
+    const pane = state.panes[state.activePane];
+    if (!pane) return;
+    const tab = pane.tabs.find(t => t.id === pane.activeTabId);
+    if (!tab || !tab.currentPath) {
+        const displayEl = document.getElementById('disk-space-display');
+        if (displayEl) displayEl.style.display = 'none';
+        return;
+    }
+    
+    const path = tab.currentPath;
+    if (path === lastDiskSpacePath) return;
+    lastDiskSpacePath = path;
+
+    try {
+        const response = await fetch(`/api/diskspace?path=${encodeURIComponent(path)}`);
+        if (!response.ok) throw new Error('Failed to fetch disk space');
+        const data = await response.json();
+        
+        const free = data.free;
+        const total = data.total;
+        const used = total - free;
+        const usedPercent = total > 0 ? (used / total) * 100 : 0;
+        
+        const progressBar = document.getElementById('disk-space-progress-bar');
+        const textSpan = document.getElementById('disk-space-text');
+        const displayEl = document.getElementById('disk-space-display');
+        
+        if (progressBar && textSpan && displayEl) {
+            progressBar.style.width = `${usedPercent}%`;
+            
+            if (usedPercent >= 90) {
+                progressBar.classList.add('low-space');
+            } else {
+                progressBar.classList.remove('low-space');
+            }
+            
+            textSpan.textContent = `${formatBytes(free)} free of ${formatBytes(total)}`;
+            displayEl.style.display = 'flex';
+        }
+    } catch (err) {
+        console.error('Error fetching disk space info:', err);
+    }
+}
+

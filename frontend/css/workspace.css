@@ -73,3 +73,46 @@
 .workspace-save-indicator.visible {
     opacity: 1;
 }
+
+/* Disk Space Info Display styling */
+.disk-space-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    background-color: var(--bg-sidebar);
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.disk-space-bar {
+    width: 60px;
+    height: 6px;
+    background-color: var(--bg-main);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--border-color);
+}
+
+.disk-space-progress {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent-color), var(--accent-hover));
+    border-radius: 3px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.disk-space-progress.low-space {
+    background: linear-gradient(90deg, var(--danger-color), #ff6b6b);
+}
+
+.disk-space-text {
+    font-family: var(--font-stack);
+    font-weight: 500;
+    white-space: nowrap;
+}
+

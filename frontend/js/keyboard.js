@@ -241,7 +241,10 @@ export function handleKeyboardShortcuts(e) {
         'delete': () => triggerDelete(),
         'navigate-up': () => navigatePaneUp(state.activePane),
         'open': () => triggerOpen(),
-        'create-folder': () => triggerCreateFolder()
+        'create-folder': () => triggerCreateFolder(),
+        'select-all': () => {
+            import('./file-list.js').then(m => m.selectAll());
+        }
     };
 
     const NO_PREVENT_DEFAULT = ['copy', 'cut', 'paste', 'rename', 'delete', 'navigate-up', 'open'];

@@ -24,7 +24,8 @@ export const SHORTCUTS = {
     'toggle-sidebar': 'Ctrl+B',
     'new-tab': 'Ctrl+T',
     'close-tab': 'Ctrl+W',
-    'navigate-up': 'Backspace'
+    'navigate-up': 'Backspace',
+    'select-all': 'Ctrl+A'
 };
 
 /**
