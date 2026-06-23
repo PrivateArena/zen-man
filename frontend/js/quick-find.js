@@ -2,6 +2,7 @@ import { state, getActiveTab, getPaneDom, getActivePane } from './state.js';
 import { formatSize } from './utils.js';
 import { openFile, executeFileOp } from './api.js';
 import { updateItemSelectionStyles, updateSelectionUI, updateClipboardUI, renderFiles } from './file-list.js';
+import { copyPaths, copyNames } from './context-menu.js';
 
 let navigateToCallback = null;
 let activeAbortController = null;
@@ -76,6 +77,8 @@ function setupModalListeners() {
     const recursiveCheck = document.getElementById('quick-find-recursive');
     const btnCopy = document.getElementById('quick-find-btn-copy');
     const btnCut = document.getElementById('quick-find-btn-cut');
+    const btnCopyPath = document.getElementById('quick-find-btn-copy-path');
+    const btnCopyName = document.getElementById('quick-find-btn-copy-name');
     const btnDelete = document.getElementById('quick-find-btn-delete');
 
     overlay.addEventListener('click', onOverlayClick);
@@ -84,6 +87,8 @@ function setupModalListeners() {
     recursiveCheck.addEventListener('change', onRecursiveToggle);
     btnCopy.addEventListener('click', onCopyFoundClick);
     btnCut.addEventListener('click', onCutFoundClick);
+    btnCopyPath.addEventListener('click', onCopyPathFoundClick);
+    btnCopyName.addEventListener('click', onCopyNameFoundClick);
     btnDelete.addEventListener('click', onDeleteFoundClick);
 }
 
@@ -93,6 +98,8 @@ function removeModalListeners() {
     const recursiveCheck = document.getElementById('quick-find-recursive');
     const btnCopy = document.getElementById('quick-find-btn-copy');
     const btnCut = document.getElementById('quick-find-btn-cut');
+    const btnCopyPath = document.getElementById('quick-find-btn-copy-path');
+    const btnCopyName = document.getElementById('quick-find-btn-copy-name');
     const btnDelete = document.getElementById('quick-find-btn-delete');
 
     overlay.removeEventListener('click', onOverlayClick);
@@ -101,6 +108,8 @@ function removeModalListeners() {
     recursiveCheck.removeEventListener('change', onRecursiveToggle);
     btnCopy.removeEventListener('click', onCopyFoundClick);
     btnCut.removeEventListener('click', onCutFoundClick);
+    btnCopyPath.removeEventListener('click', onCopyPathFoundClick);
+    btnCopyName.removeEventListener('click', onCopyNameFoundClick);
     btnDelete.removeEventListener('click', onDeleteFoundClick);
 }
 
@@ -354,10 +363,14 @@ function updateActionButtonsState() {
     const hasResults = searchResults && searchResults.length > 0;
     const btnCopy = document.getElementById('quick-find-btn-copy');
     const btnCut = document.getElementById('quick-find-btn-cut');
+    const btnCopyPath = document.getElementById('quick-find-btn-copy-path');
+    const btnCopyName = document.getElementById('quick-find-btn-copy-name');
     const btnDelete = document.getElementById('quick-find-btn-delete');
     
     if (btnCopy) btnCopy.disabled = !hasResults;
     if (btnCut) btnCut.disabled = !hasResults;
+    if (btnCopyPath) btnCopyPath.disabled = !hasResults;
+    if (btnCopyName) btnCopyName.disabled = !hasResults;
     if (btnDelete) btnDelete.disabled = !hasResults;
 }
 
@@ -400,6 +413,50 @@ async function onCopyFoundClick() {
 
 async function onCutFoundClick() {
     await performClipboardFound('cut');
+}
+
+async function onCopyPathFoundClick() {
+    const tab = getActiveTab();
+    if (!tab || !searchResults || searchResults.length === 0) return;
+
+    try {
+        const paths = await resolvePathsForAction();
+        if (paths.length === 0) return;
+
+        copyPaths(paths);
+
+        // Update active pane status bar info
+        const infoEl = getPaneDom(state.activePane).querySelector('.status-info');
+        if (infoEl) {
+            infoEl.textContent = `Copied paths of ${paths.length} found item(s) to system clipboard`;
+        }
+
+        closeQuickFind();
+    } catch (err) {
+        alert(`Failed to copy found paths: ${err.message}`);
+    }
+}
+
+async function onCopyNameFoundClick() {
+    const tab = getActiveTab();
+    if (!tab || !searchResults || searchResults.length === 0) return;
+
+    try {
+        const paths = await resolvePathsForAction();
+        if (paths.length === 0) return;
+
+        copyNames(paths);
+
+        // Update active pane status bar info
+        const infoEl = getPaneDom(state.activePane).querySelector('.status-info');
+        if (infoEl) {
+            infoEl.textContent = `Copied names of ${paths.length} found item(s) to system clipboard`;
+        }
+
+        closeQuickFind();
+    } catch (err) {
+        alert(`Failed to copy found names: ${err.message}`);
+    }
 }
 
 async function performClipboardFound(op) {

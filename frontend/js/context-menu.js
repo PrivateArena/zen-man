@@ -485,19 +485,29 @@ export async function triggerCreateFolder() {
     }
 }
 
+export function copyPaths(paths) {
+    if (!paths || paths.length === 0) return;
+    const text = paths.join('\n') + '\n';
+    navigator.clipboard.writeText(text);
+}
+
+export function copyNames(paths) {
+    if (!paths || paths.length === 0) return;
+    const text = paths.map(p => p.split('/').pop()).join('\n') + '\n';
+    navigator.clipboard.writeText(text);
+}
+
 // Copy Path / Name helpers
 export function triggerCopyPath() {
     const tab = getActiveTab();
     if (!tab || tab.selectedPaths.size === 0) return;
-    const text = [...tab.selectedPaths].join('\n') + '\n';
-    navigator.clipboard.writeText(text);
+    copyPaths([...tab.selectedPaths]);
 }
 
 export function triggerCopyName() {
     const tab = getActiveTab();
     if (!tab || tab.selectedPaths.size === 0) return;
-    const text = [...tab.selectedPaths].map(p => p.split('/').pop()).join('\n') + '\n';
-    navigator.clipboard.writeText(text);
+    copyNames([...tab.selectedPaths]);
 }
 
 export function triggerCopyTabPath(paneId, tabId) {
@@ -544,10 +554,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 triggerClipboard('cut', true);
             } else if (action === 'copy-path') {
                 // data-target-path overrides selectedPaths (used by breadcrumb menu)
-                if (targetPath) navigator.clipboard.writeText(targetPath + '\n');
+                if (targetPath) copyPaths([targetPath]);
                 else triggerCopyPath();
             } else if (action === 'copy-name') {
-                if (targetPath) navigator.clipboard.writeText((targetPath.split('/').pop() || targetPath) + '\n');
+                if (targetPath) copyNames([targetPath]);
                 else triggerCopyName();
             } else if (action === 'rename') {
                 triggerRename();
