@@ -49,6 +49,13 @@ func InitDB() error {
 		}
 
 		db = d
+		// Initialize search tables
+		if err := InitSearchTables(); err != nil {
+			d.Close()
+			db = nil
+			initErr = fmt.Errorf("failed to initialize search tables: %w", err)
+			return
+		}
 	})
 	return initErr
 }
