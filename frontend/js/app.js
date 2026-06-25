@@ -40,6 +40,7 @@ import { handlePaneContextMenu } from './context-menu.js';
 import { handleKeyboardShortcuts } from './keyboard.js';
 import { initCustomActions } from './custom-actions.js';
 import { initQuickFind } from './quick-find.js';
+import { initSearchManager } from './search-manager.js';
 
 // Initialize Module Callback Registrations to break circular dependencies
 initSplitView(updateSelectionUI, createTab);
@@ -48,6 +49,7 @@ initFileList(navigateTo);
 initNavigation(renderTabs, scheduleAutoSave);
 initTabs(scheduleAutoSave);
 initQuickFind(navigateTo);
+initSearchManager(navigateTo);
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {

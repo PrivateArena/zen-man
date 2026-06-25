@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,6 +28,12 @@ func InitDB() error {
 		}
 
 		dbPath := filepath.Join(dir, "zen-man.db")
+		if flag.Lookup("test.v") != nil {
+			dbPath = filepath.Join(os.TempDir(), "zen-man-test.db")
+			os.Remove(dbPath)
+			os.Remove(dbPath + "-wal")
+			os.Remove(dbPath + "-shm")
+		}
 		d, err := sql.Open("sqlite", dbPath)
 		if err != nil {
 			initErr = fmt.Errorf("failed to open database: %w", err)

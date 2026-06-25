@@ -488,6 +488,84 @@
         </aside>
     </div>
 
+    <!-- Search Manager Overlay (Ctrl+Shift+F) -->
+    <div id="search-manager-overlay" class="search-manager-overlay" style="display: none;">
+        <div class="search-manager-modal">
+            <!-- Header & Query DSL Input -->
+            <div class="sm-header">
+                <div class="sm-top-row">
+                    <div class="sm-input-wrap">
+                        <span class="sm-search-icon">🔍</span>
+                        <input type="text" id="sm-input" class="sm-input" placeholder="Search files... e.g. report ext:pdf in:&quot;/home/user&quot; type:file" autocomplete="off">
+                    </div>
+                    <div id="sm-status-indicator" class="sm-status-indicator ready">
+                        <div class="dot"></div>
+                        <span id="sm-status-text">Ready</span>
+                    </div>
+                    <button id="sm-btn-settings" class="btn-sm-settings">⚙️ Settings</button>
+                </div>
+                <div id="sm-filter-pills" class="sm-filter-pills" style="display: none;">
+                    <span class="sm-pill-label">Filters:</span>
+                </div>
+            </div>
+
+            <!-- Settings Panel (Collapsible) -->
+            <div id="sm-settings-panel" class="sm-settings-panel" style="display: none;">
+                <div class="sm-settings-col">
+                    <h4>Index Roots
+                        <button id="sm-add-root" class="btn-remove-item" style="color:var(--accent-color); font-size:1.1rem;" title="Add Index Root">+</button>
+                    </h4>
+                    <div id="sm-roots-list" class="sm-settings-list"></div>
+                </div>
+                <div class="sm-settings-col">
+                    <h4>Exclude Patterns
+                        <button id="sm-add-exclude" class="btn-remove-item" style="color:var(--accent-color); font-size:1.1rem;" title="Add Exclude Pattern">+</button>
+                    </h4>
+                    <div id="sm-excludes-list" class="sm-settings-list"></div>
+                </div>
+                <div class="sm-settings-actions">
+                    <div class="sm-toggles">
+                        <label class="sm-toggle-label" title="Automatically run indexer in background when config changes">
+                            <input type="checkbox" id="sm-chk-auto">
+                            <span>Auto Index</span>
+                        </label>
+                        <label class="sm-toggle-label" title="Follow symlinks (WARNING: Can cause infinite recursion loops)">
+                            <input type="checkbox" id="sm-chk-symlinks">
+                            <span>Follow Symlinks</span>
+                        </label>
+                    </div>
+                    <div class="sm-control-buttons">
+                        <button id="sm-btn-cancel-rebuild" class="btn-sm-action" style="display: none;">Cancel Rebuild</button>
+                        <button id="sm-btn-rebuild" class="btn-sm-action accent">Rebuild Index</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Viewport -->
+            <div class="sm-results-wrapper">
+                <div class="sm-results-header">
+                    <div class="sm-col-name">Name</div>
+                    <div class="sm-col-path">Path</div>
+                    <div class="sm-col-size">Size</div>
+                    <div class="sm-col-date">Modified</div>
+                </div>
+                <div id="sm-results-viewport" class="sm-results-viewport" tabindex="0">
+                    <div id="sm-results-inner" class="sm-results-inner"></div>
+                </div>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="sm-status-bar">
+                <span id="sm-stats-left">0 results</span>
+                <div class="sm-pagination">
+                    <button id="sm-page-prev" class="btn-sm-page" disabled>&larr;</button>
+                    <span id="sm-page-info">Page 1 of 1</span>
+                    <button id="sm-page-next" class="btn-sm-page" disabled>&rarr;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Quick Find Modal -->
     <div id="quick-find-overlay" class="quick-find-overlay" style="display: none;">
         <div class="quick-find-modal">

@@ -3,6 +3,7 @@ import { setSplitView, setQuadView } from './split-view.js';
 import { createTab, closeTab, switchTab } from './tabs.js';
 import { navigatePaneUp } from './navigation.js';
 import { openQuickFind } from './quick-find.js';
+import { toggleSearchManager } from './search-manager.js';
 import { getIsBatchRenameActive, cancelBatchRename } from './batch-rename.js';
 import { 
     triggerClipboard, 
@@ -199,6 +200,7 @@ export function handleKeyboardShortcuts(e) {
     }
 
     const handlers = {
+        'search-manager': () => toggleSearchManager(),
         'quick-find': () => openQuickFind(),
         'split-view': () => setSplitView(!state.isSplit),
         'quad-view': () => setQuadView(!state.isQuad),

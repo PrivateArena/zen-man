@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -68,6 +69,10 @@ func GetIndexManager() *IndexManager {
 		}
 		os.MkdirAll(configDir, 0755)
 		cPath := filepath.Join(configDir, "search-config.json")
+		if flag.Lookup("test.v") != nil {
+			cPath = filepath.Join(os.TempDir(), "search-config-test.json")
+			os.Remove(cPath)
+		}
 
 		im := &IndexManager{
 			configPath: cPath,

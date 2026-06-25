@@ -18,6 +18,7 @@ export const SHORTCUTS = {
     'create-folder': 'Ctrl+Shift+N',
     
     // Non-context-menu global shortcuts
+    'search-manager': 'Ctrl+Shift+F',
     'quick-find': 'Ctrl+F',
     'split-view': 'F3',
     'quad-view': 'F4',
