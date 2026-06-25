@@ -109,6 +109,22 @@ func (im *IndexManager) runRebuild(ctx context.Context) error {
 		return fmt.Errorf("failed to create shadow table: %w", err)
 	}
 
+	_, err = db.Exec(`DROP TABLE IF EXISTS files_fts_shadow;`)
+	if err != nil {
+		db.Exec(`DROP TABLE IF EXISTS files_shadow;`)
+		return fmt.Errorf("failed to drop old fts shadow table: %w", err)
+	}
+
+	_, err = db.Exec(`
+	CREATE VIRTUAL TABLE files_fts_shadow USING fts5(
+		name,
+		tokenize='trigram'
+	);`)
+	if err != nil {
+		db.Exec(`DROP TABLE IF EXISTS files_shadow;`)
+		return fmt.Errorf("failed to create fts shadow table: %w", err)
+	}
+
 	// Compile glob exclusions to regexes
 	im.Mutex.RLock()
 	excludes := im.Config.Excludes
@@ -165,6 +181,7 @@ func (im *IndexManager) runRebuild(ctx context.Context) error {
 	case writeErr := <-errCh:
 		if writeErr != nil {
 			db.Exec(`DROP TABLE IF EXISTS files_shadow;`)
+			db.Exec(`DROP TABLE IF EXISTS files_fts_shadow;`)
 			return writeErr
 		}
 	default:
@@ -172,6 +189,7 @@ func (im *IndexManager) runRebuild(ctx context.Context) error {
 
 	if ctx.Err() != nil {
 		db.Exec(`DROP TABLE IF EXISTS files_shadow;`)
+		db.Exec(`DROP TABLE IF EXISTS files_fts_shadow;`)
 		return ctx.Err()
 	}
 
@@ -186,8 +204,17 @@ func (im *IndexManager) runRebuild(ctx context.Context) error {
 	for _, idx := range shadowIndexes {
 		if _, err := db.Exec(idx); err != nil {
 			db.Exec(`DROP TABLE IF EXISTS files_shadow;`)
+			db.Exec(`DROP TABLE IF EXISTS files_fts_shadow;`)
 			return fmt.Errorf("failed to index shadow table: %w", err)
 		}
+	}
+
+	// Populate the FTS5 shadow table from the files_shadow table
+	_, err = db.Exec(`INSERT INTO files_fts_shadow(rowid, name) SELECT id, name FROM files_shadow;`)
+	if err != nil {
+		db.Exec(`DROP TABLE IF EXISTS files_shadow;`)
+		db.Exec(`DROP TABLE IF EXISTS files_fts_shadow;`)
+		return fmt.Errorf("failed to populate fts shadow table: %w", err)
 	}
 
 	// Atomic table swap
@@ -201,16 +228,18 @@ func (im *IndexManager) runRebuild(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	_, err = tx.Exec(`DROP TABLE IF EXISTS files_fts;`)
+	if err != nil {
+		return err
+	}
 	_, err = tx.Exec(`ALTER TABLE files_shadow RENAME TO files;`)
 	if err != nil {
 		return err
 	}
-
-	// Re-add indices with target names
-	_, err = tx.Exec(`DROP INDEX IF EXISTS idx_files_path;`)
-	_, err = tx.Exec(`ALTER INDEX idx_files_shadow_path RENAME TO idx_files_path;`)
-	// SQLite automatically renames indices when table is renamed, but standard ALTER TABLE in sqlite updates it.
-	// Actually, RENAME TABLE also renames its indexes automatically in SQLite. Let's make sure they are clean.
+	_, err = tx.Exec(`ALTER TABLE files_fts_shadow RENAME TO files_fts;`)
+	if err != nil {
+		return err
+	}
 
 	err = tx.Commit()
 	if err != nil {

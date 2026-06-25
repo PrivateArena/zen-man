@@ -19,6 +19,14 @@ func BenchmarkParseSearchQuery(b *testing.B) {
 
 // BenchmarkExecuteSearch benchmarks SQLite index lookup speeds with varying search terms
 func BenchmarkExecuteSearch(b *testing.B) {
+	DBPathOverride = filepath.Join(b.TempDir(), "zen-man-bench.db")
+	ConfigPathOverride = filepath.Join(b.TempDir(), "search-config-bench.json")
+
+	if db != nil {
+		db.Close()
+		db = nil
+	}
+
 	err := InitDB()
 	if err != nil {
 		b.Fatalf("Failed to init DB: %v", err)
@@ -71,6 +79,14 @@ func BenchmarkExecuteSearch(b *testing.B) {
 
 // BenchmarkIndexerThroughput benchmarks walker + batch insert speed
 func BenchmarkIndexerThroughput(b *testing.B) {
+	DBPathOverride = filepath.Join(b.TempDir(), "zen-man-bench.db")
+	ConfigPathOverride = filepath.Join(b.TempDir(), "search-config-bench.json")
+
+	if db != nil {
+		db.Close()
+		db = nil
+	}
+
 	err := InitDB()
 	if err != nil {
 		b.Fatalf("Failed to init DB: %v", err)

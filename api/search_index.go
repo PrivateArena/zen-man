@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,10 +39,17 @@ type ParsedQuery struct {
 	TypeFilter string // "file", "dir", "any"
 }
 
+// Package-level precompiled regexes to avoid allocations
+var (
+	queryFilterRe = regexp.MustCompile(`(\bext|\bin|\btype):(?:"([^"]+)"|(\S+))`)
+	wordRe        = regexp.MustCompile(`"[^"]+"|\S+`)
+)
+
 // Global IndexManager
 var (
 	GlobalIndexManager *IndexManager
 	indexManagerOnce   sync.Once
+	ConfigPathOverride string
 )
 
 type IndexManager struct {
@@ -68,9 +74,10 @@ func GetIndexManager() *IndexManager {
 			configDir = filepath.Join(home, ".config", "zen-man")
 		}
 		os.MkdirAll(configDir, 0755)
-		cPath := filepath.Join(configDir, "search-config.json")
-		if flag.Lookup("test.v") != nil {
-			cPath = filepath.Join(os.TempDir(), "search-config-test.json")
+		cPath := ConfigPathOverride
+		if cPath == "" {
+			cPath = filepath.Join(configDir, "search-config.json")
+		} else {
 			os.Remove(cPath)
 		}
 
@@ -127,9 +134,7 @@ func (im *IndexManager) SaveConfig() error {
 // InitSearchTables creates the needed database tables
 func InitSearchTables() error {
 	if db == nil {
-		if err := InitDB(); err != nil {
-			return err
-		}
+		return errors.New("database not initialized")
 	}
 
 	// Schema version table
@@ -179,6 +184,16 @@ func InitSearchTables() error {
 		}
 	}
 
+	// Create FTS5 virtual table using trigram tokenizer for arbitrary substring search
+	_, err = db.Exec(`
+	CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
+		name,
+		tokenize='trigram'
+	);`)
+	if err != nil {
+		return fmt.Errorf("failed to create files_fts table: %w", err)
+	}
+
 	return runSearchMigrations()
 }
 
@@ -217,10 +232,8 @@ func ParseSearchQuery(q string) ParsedQuery {
 	var pq ParsedQuery
 	pq.TypeFilter = "any"
 
-	// Regular expression to match key:value where value can be quoted or not
-	// e.g. ext:pdf or in:"/home/user/my space"
-	re := regexp.MustCompile(`(\bext|\bin|\btype):(?:"([^"]+)"|(\S+))`)
-	matches := re.FindAllStringSubmatch(q, -1)
+	// Match key:value filters using package-level compiled regex
+	matches := queryFilterRe.FindAllStringSubmatch(q, -1)
 
 	// Keep track of matched indices to remove them from words
 	removedParts := []string{}
@@ -257,8 +270,7 @@ func ParseSearchQuery(q string) ParsedQuery {
 		cleanQ = strings.Replace(cleanQ, part, "", 1)
 	}
 
-	// Split by space, handle potential quotes in words
-	wordRe := regexp.MustCompile(`"[^"]+"|\S+`)
+	// Split by space, handle potential quotes in words using package-level compiled regex
 	words := wordRe.FindAllString(cleanQ, -1)
 	for _, w := range words {
 		w = strings.Trim(w, `"`)
@@ -271,7 +283,7 @@ func ParseSearchQuery(q string) ParsedQuery {
 	return pq
 }
 
-// ExecuteSearch runs a query against the SQLite B-Tree index
+// ExecuteSearch runs a query against the SQLite B-Tree index and FTS5 trigram virtual table
 func ExecuteSearch(pq ParsedQuery, limit, offset int) ([]SearchEntry, int, error) {
 	if db == nil {
 		return nil, 0, errors.New("database not initialized")
@@ -280,11 +292,17 @@ func ExecuteSearch(pq ParsedQuery, limit, offset int) ([]SearchEntry, int, error
 	var conditions []string
 	var args []interface{}
 
-	// Word queries
-	for _, word := range pq.Words {
-		// Use INSTR or LIKE. LIKE '%%' is standard. Since it's case-insensitive, we search against lowercased 'name' column.
-		conditions = append(conditions, "name LIKE ?")
-		args = append(args, "%"+word+"%")
+	// Word queries - utilize FTS5 trigram virtual table for high-performance substring search
+	if len(pq.Words) > 0 {
+		var ftsParts []string
+		for _, word := range pq.Words {
+			// Escape double quotes inside FTS search tokens
+			escaped := strings.ReplaceAll(word, `"`, `""`)
+			ftsParts = append(ftsParts, `"`+escaped+`"`)
+		}
+		matchStr := strings.Join(ftsParts, " AND ")
+		conditions = append(conditions, "id IN (SELECT rowid FROM files_fts WHERE files_fts MATCH ?)")
+		args = append(args, matchStr)
 	}
 
 	// Extension queries
@@ -303,8 +321,9 @@ func ExecuteSearch(pq ParsedQuery, limit, offset int) ([]SearchEntry, int, error
 		for _, f := range pq.Folders {
 			// Convert path to clean absolute representation
 			absF := filepath.Clean(f)
-			folderConds = append(folderConds, "(parent = ? OR parent LIKE ?)")
-			args = append(args, absF, absF+string(filepath.Separator)+"%")
+			escapedF := escapeLikePattern(absF)
+			folderConds = append(folderConds, "(parent = ? OR parent LIKE ? ESCAPE '\\')")
+			args = append(args, absF, escapedF+string(filepath.Separator)+"%")
 		}
 		conditions = append(conditions, "("+strings.Join(folderConds, " OR ")+")")
 	}
@@ -337,7 +356,11 @@ func ExecuteSearch(pq ParsedQuery, limit, offset int) ([]SearchEntry, int, error
 		ORDER BY is_dir DESC, name ASC 
 		LIMIT ? OFFSET ?`, whereClause)
 
-	argsWithLimit := append(args, limit, offset)
+	// Copy args to avoid race condition / slice aliasing bugs
+	argsWithLimit := make([]interface{}, len(args), len(args)+2)
+	copy(argsWithLimit, args)
+	argsWithLimit = append(argsWithLimit, limit, offset)
+
 	rows, err := db.Query(selectQuery, argsWithLimit...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query search results: %w", err)
@@ -363,5 +386,16 @@ func ExecuteSearch(pq ParsedQuery, limit, offset int) ([]SearchEntry, int, error
 		})
 	}
 
+	if err = rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error during search results iteration: %w", err)
+	}
+
 	return entries, totalMatched, nil
+}
+
+func escapeLikePattern(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "%", "\\%")
+	s = strings.ReplaceAll(s, "_", "\\_")
+	return s
 }

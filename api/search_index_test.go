@@ -118,6 +118,14 @@ func TestCompileExcludes(t *testing.T) {
 }
 
 func TestIndexRebuildAndSearch(t *testing.T) {
+	DBPathOverride = filepath.Join(t.TempDir(), "zen-man-test.db")
+	ConfigPathOverride = filepath.Join(t.TempDir(), "search-config-test.json")
+
+	if db != nil {
+		db.Close()
+		db = nil
+	}
+
 	// Initialize database first
 	err := InitDB()
 	if err != nil {
@@ -204,5 +212,38 @@ func TestIndexRebuildAndSearch(t *testing.T) {
 	// These items are report.pdf and notes.txt. So exactly 2 items.
 	if total != 2 {
 		t.Errorf("Expected 2 matches for folder filter, got %d. Entries: %+v", total, entries)
+	}
+}
+
+func TestFTS5Trigram(t *testing.T) {
+	DBPathOverride = filepath.Join(t.TempDir(), "zen-man-test.db")
+	if db != nil {
+		db.Close()
+		db = nil
+	}
+
+	err := InitDB()
+	if err != nil {
+		t.Fatalf("Failed to init DB: %v", err)
+	}
+	_, err = db.Exec("DROP TABLE IF EXISTS test_trigram_fts;")
+	if err != nil {
+		t.Fatalf("Failed to drop: %v", err)
+	}
+	_, err = db.Exec("CREATE VIRTUAL TABLE test_trigram_fts USING fts5(name, tokenize='trigram');")
+	if err != nil {
+		t.Fatalf("Failed to create FTS5 trigram table: %v", err)
+	}
+	_, err = db.Exec("INSERT INTO test_trigram_fts(name) VALUES ('report_sales.pdf'), ('notes_office.txt');")
+	if err != nil {
+		t.Fatalf("Failed to insert FTS5 trigram: %v", err)
+	}
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM test_trigram_fts WHERE name MATCH 'sales'").Scan(&count)
+	if err != nil {
+		t.Fatalf("FTS5 trigram match query failed: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Expected 1 match, got %d", count)
 	}
 }

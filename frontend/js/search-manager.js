@@ -24,6 +24,17 @@ let currentConfig = {
     auto_index: false
 };
 
+// HTML escaping helper to prevent XSS vulnerability
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // Initializer
 export function initSearchManager(navigateTo) {
     navigateToCallback = navigateTo;
@@ -335,10 +346,13 @@ function renderVirtualRows() {
         const sizeStr = item.is_dir ? '' : formatSize(item.size);
         const dateStr = formatDate(item.mtime);
         
+        const escapedName = escapeHTML(item.name);
+        const escapedPath = escapeHTML(item.path);
+
         html += `
             <div class="sm-row ${isSelected}" style="position:absolute; top:${i * ROW_HEIGHT}px; left:0; right:0; height:${ROW_HEIGHT}px;" data-index="${i}">
-                <div class="sm-col-name"><span class="sm-icon">${icon}</span><span>${item.name}</span></div>
-                <div class="sm-col-path" title="${item.path}">${item.path}</div>
+                <div class="sm-col-name"><span class="sm-icon">${icon}</span><span>${escapedName}</span></div>
+                <div class="sm-col-path" title="${escapedPath}">${escapedPath}</div>
                 <div class="sm-col-size">${sizeStr}</div>
                 <div class="sm-col-date">${dateStr}</div>
             </div>
@@ -531,8 +545,7 @@ function nextPage() {
 // Settings Panel Collapse/Expand
 function toggleSettingsPanel() {
     const panel = document.getElementById('sm-settings-panel');
-    const isHidden = panel.style.display === 'none';
-    panel.style.display = isHidden ? 'grid' : 'none';
+    panel.classList.toggle('open');
 }
 
 // Fetch Index Status & Configuration
@@ -586,21 +599,27 @@ function renderSettingsLists() {
     
     // Roots
     const rootsContainer = document.getElementById('sm-roots-list');
-    rootsContainer.innerHTML = currentConfig.roots.map((r, i) => `
-        <div class="sm-list-item">
-            <span title="${r}">${r}</span>
-            <button class="btn-remove-item" data-type="root" data-index="${i}">✕</button>
-        </div>
-    `).join('') || '<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:10px;">No index roots defined</div>';
+    rootsContainer.innerHTML = currentConfig.roots.map((r, i) => {
+        const escapedRoot = escapeHTML(r);
+        return `
+            <div class="sm-list-item">
+                <span title="${escapedRoot}">${escapedRoot}</span>
+                <button class="btn-remove-item" data-type="root" data-index="${i}">✕</button>
+            </div>
+        `;
+    }).join('') || '<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:10px;">No index roots defined</div>';
     
     // Excludes
     const excludesContainer = document.getElementById('sm-excludes-list');
-    excludesContainer.innerHTML = currentConfig.excludes.map((e, i) => `
-        <div class="sm-list-item">
-            <span title="${e}">${e}</span>
-            <button class="btn-remove-item" data-type="exclude" data-index="${i}">✕</button>
-        </div>
-    `).join('') || '<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:10px;">No exclusions defined</div>';
+    excludesContainer.innerHTML = currentConfig.excludes.map((e, i) => {
+        const escapedExclude = escapeHTML(e);
+        return `
+            <div class="sm-list-item">
+                <span title="${escapedExclude}">${escapedExclude}</span>
+                <button class="btn-remove-item" data-type="exclude" data-index="${i}">✕</button>
+            </div>
+        `;
+    }).join('') || '<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:10px;">No exclusions defined</div>';
 
     // Bind remove buttons
     const panel = document.getElementById('sm-settings-panel');

@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,58 +12,63 @@ import (
 )
 
 var (
-	db     *sql.DB
-	dbOnce sync.Once
+	db             *sql.DB
+	dbMu           sync.Mutex
+	DBPathOverride string
 )
 
 // InitDB initializes the SQLite database
 func InitDB() error {
-	var initErr error
-	dbOnce.Do(func() {
-		dir := logDir()
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			initErr = fmt.Errorf("failed to create db dir: %w", err)
-			return
-		}
+	dbMu.Lock()
+	defer dbMu.Unlock()
 
-		dbPath := filepath.Join(dir, "zen-man.db")
-		if flag.Lookup("test.v") != nil {
-			dbPath = filepath.Join(os.TempDir(), "zen-man-test.db")
-			os.Remove(dbPath)
-			os.Remove(dbPath + "-wal")
-			os.Remove(dbPath + "-shm")
-		}
-		d, err := sql.Open("sqlite", dbPath)
-		if err != nil {
-			initErr = fmt.Errorf("failed to open database: %w", err)
-			return
-		}
+	if db != nil {
+		return nil
+	}
 
-		d.SetMaxOpenConns(1)
+	dir := logDir()
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create db dir: %w", err)
+	}
 
-		query := `
-		CREATE TABLE IF NOT EXISTS folder_sizes (
-			path TEXT PRIMARY KEY,
-			size INTEGER,
-			file_count INTEGER,
-			updated_at INTEGER
-		);`
-		if _, err := d.Exec(query); err != nil {
-			d.Close()
-			initErr = fmt.Errorf("failed to create table: %w", err)
-			return
-		}
+	dbPath := DBPathOverride
+	if dbPath == "" {
+		dbPath = filepath.Join(dir, "zen-man.db")
+	} else {
+		// Clean up test DB files if overriding
+		os.Remove(dbPath)
+		os.Remove(dbPath + "-wal")
+		os.Remove(dbPath + "-shm")
+	}
 
-		db = d
-		// Initialize search tables
-		if err := InitSearchTables(); err != nil {
-			d.Close()
-			db = nil
-			initErr = fmt.Errorf("failed to initialize search tables: %w", err)
-			return
-		}
-	})
-	return initErr
+	d, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+
+	d.SetMaxOpenConns(1)
+
+	query := `
+	CREATE TABLE IF NOT EXISTS folder_sizes (
+		path TEXT PRIMARY KEY,
+		size INTEGER,
+		file_count INTEGER,
+		updated_at INTEGER
+	);`
+	if _, err := d.Exec(query); err != nil {
+		d.Close()
+		return fmt.Errorf("failed to create table: %w", err)
+	}
+
+	db = d
+	// Initialize search tables
+	if err := InitSearchTables(); err != nil {
+		d.Close()
+		db = nil
+		return fmt.Errorf("failed to initialize search tables: %w", err)
+	}
+
+	return nil
 }
 
 // GetCachedDirSize returns cached size, file count, and a boolean indicating cache hit

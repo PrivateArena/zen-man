@@ -183,18 +183,23 @@
 
 /* Settings Panel */
 .sm-settings-panel {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border-color);
+    padding: 0 20px;
+    border-bottom: 0 solid var(--border-color);
     background: rgba(9, 10, 15, 0.4);
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
-    animation: slideDown 0.2s ease-out;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease-out, opacity 0.2s ease-out, padding 0.25s ease-out, border-bottom 0.2s ease-out;
 }
 
-@keyframes slideDown {
-    from { max-height: 0; opacity: 0; overflow: hidden; }
-    to { max-height: 300px; opacity: 1; }
+.sm-settings-panel.open {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    max-height: 350px;
+    opacity: 1;
 }
 
 .sm-settings-col {
