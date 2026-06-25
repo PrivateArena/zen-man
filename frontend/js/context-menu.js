@@ -3,7 +3,7 @@ import { setActivePane } from './split-view.js';
 import { navigateTo } from './navigation.js';
 import { executeFileOp, openFile } from './api.js';
 import { updateItemSelectionStyles, updateSelectionUI, renderFiles, updateClipboardUI } from './file-list.js';
-import { createTab, closeTab, duplicateTab, assignTabGroup } from './tabs.js';
+import { createTab, closeTab, duplicateTab, assignTabGroup, switchTab } from './tabs.js';
 import { getActionsForContext, handleActionMenuClick, handleActionMenuClickForPath } from './custom-actions.js';
 import { positionElementSmartly } from './utils.js';
 import { getShortcutDisplay } from './shortcuts.js';
@@ -154,6 +154,33 @@ export function showFolderContextMenu(e, folderPath, paneId, context = 'folder')
     }
 
     _positionAndShow(e, html, context);
+}
+
+// --- Search results context menu ---
+export function showSearchResultContextMenu(e, targetPath, isDir) {
+    let html = `
+        <div class="context-menu-item" data-action="open-search-result" data-target-path="${targetPath}" data-is-dir="${isDir}">
+            <span>Open</span>
+            <span class="context-menu-shortcut">${getShortcutDisplay('open')}</span>
+        </div>
+        <div class="context-menu-item" data-action="reveal-search-result" data-target-path="${targetPath}">
+            <span>Open Containing Folder</span>
+        </div>
+        <div class="context-menu-item" data-action="reveal-search-result-new-tab" data-target-path="${targetPath}">
+            <span>Open Containing Folder in New Tab</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="copy-path" data-target-path="${targetPath}">
+            <span>Copy Path</span>
+            <span class="context-menu-shortcut">${getShortcutDisplay('copy-path')}</span>
+        </div>
+        <div class="context-menu-item" data-action="copy-name" data-target-path="${targetPath}">
+            <span>Copy Name</span>
+            <span class="context-menu-shortcut">${getShortcutDisplay('copy-name')}</span>
+        </div>
+    `;
+
+    _positionAndShow(e, html, 'search-results');
 }
 
 export function triggerOpenInNewTab() {
@@ -581,6 +608,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 triggerCopyTabPath(paneId, tabId);
             } else if (action === 'copy-tab-name') {
                 triggerCopyTabName(paneId, tabId);
+            } else if (action === 'open-search-result') {
+                const isDir = item.getAttribute('data-is-dir') === 'true';
+                import('./search-manager.js').then(sm => sm.closeSearchManager());
+                if (isDir) {
+                    navigateTo(targetPath, true, state.activePane);
+                } else {
+                    openFile(targetPath);
+                }
+            } else if (action === 'reveal-search-result') {
+                import('./search-manager.js').then(sm => sm.closeSearchManager());
+                const parentDir = targetPath.substring(0, targetPath.lastIndexOf('/')) || '/';
+                const pane = state.panes[state.activePane];
+                const activeTab = pane.tabs.find(t => t.id === pane.activeTabId);
+                if (activeTab) {
+                    activeTab.pathSelections = activeTab.pathSelections || {};
+                    activeTab.pathSelections[parentDir] = new Set([targetPath]);
+                }
+                navigateTo(parentDir, true, state.activePane);
+            } else if (action === 'reveal-search-result-new-tab') {
+                import('./search-manager.js').then(sm => sm.closeSearchManager());
+                const parentDir = targetPath.substring(0, targetPath.lastIndexOf('/')) || '/';
+                const newTab = createTab(state.activePane, parentDir, '', '', '', true);
+                newTab.pathSelections = newTab.pathSelections || {};
+                newTab.pathSelections[parentDir] = new Set([targetPath]);
+                switchTab(state.activePane, newTab.id);
             } else if (action === 'custom-action') {
                 const actionId = item.getAttribute('data-action-id');
                 handleActionMenuClick(actionId);

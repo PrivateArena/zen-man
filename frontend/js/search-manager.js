@@ -275,7 +275,10 @@ async function triggerSearch() {
         }
         
         const data = await response.json();
-        searchResults = data.entries || [];
+        searchResults = (data.entries || []).map(entry => {
+            entry.path = entry.rel_path;
+            return entry;
+        });
         totalResultsCount = data.total_matched || 0;
         
         if (searchResults.length > 0 && selectedIndex === -1) {
@@ -361,7 +364,14 @@ function renderVirtualRows() {
         row.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            executeItemAction(idx, 'reveal');
+            selectedIndex = idx;
+            highlightSelectedRow();
+            const item = searchResults[idx];
+            if (item) {
+                import('./context-menu.js').then(m => {
+                    m.showSearchResultContextMenu(e, item.path, item.is_dir);
+                });
+            }
         });
     });
 }
