@@ -1,5 +1,5 @@
 import { state, getPaneDom, getActiveTab } from './state.js';
-import { formatSize, formatDate } from './utils.js';
+import { formatSize, formatDate, parseVfsPath } from './utils.js';
 import { executeFileOp, openFile } from './api.js';
 import { getIsBatchRenameActive } from './batch-rename.js';
 
@@ -281,10 +281,17 @@ export function attachItemEventListeners(paneId) {
 
         item.addEventListener('dblclick', (e) => {
             e.stopPropagation();
-            if (isDir) {
+            const isArchiveFile = path.toLowerCase().endsWith('.zip') || path.toLowerCase().endsWith('.rar') || path.toLowerCase().endsWith('.7z');
+            const vfsInfo = parseVfsPath(path);
+            if (isDir || isArchiveFile) {
                 if (navigateToCallback) navigateToCallback(path, true, paneId);
             } else {
-                openFile(path);
+                if (vfsInfo) {
+                    const streamUrl = `/api/archive/stream?archive=${encodeURIComponent(vfsInfo.archive)}&nested=${encodeURIComponent(vfsInfo.nested)}&path=${encodeURIComponent(vfsInfo.path)}`;
+                    window.open(streamUrl, '_blank');
+                } else {
+                    openFile(path);
+                }
             }
         });
 

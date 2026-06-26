@@ -42,3 +42,50 @@ export function positionElementSmartly(menuElement, clientX, clientY) {
     menuElement.style.left = `${x}px`;
     menuElement.style.top  = `${y}px`;
 }
+
+export function parseVfsPath(path) {
+    if (!path) return null;
+    
+    const normalized = path.replace(/\\/g, '/');
+    const zipIdx = normalized.toLowerCase().indexOf('.zip');
+    const rarIdx = normalized.toLowerCase().indexOf('.rar');
+    const szIdx = normalized.toLowerCase().indexOf('.7z');
+    
+    const indices = [zipIdx, rarIdx, szIdx].filter(idx => idx !== -1);
+    if (indices.length === 0) {
+        return null;
+    }
+    
+    const firstArchiveIdx = Math.min(...indices);
+    const archiveHostEnd = firstArchiveIdx + 4;
+    const archive = path.substring(0, archiveHostEnd);
+    let remaining = path.substring(archiveHostEnd);
+    
+    if (remaining.startsWith('/')) {
+        remaining = remaining.substring(1);
+    }
+    
+    let nested = '';
+    let internalPath = remaining;
+    
+    const nestedZipIdx = remaining.toLowerCase().indexOf('.zip');
+    const nestedRarIdx = remaining.toLowerCase().indexOf('.rar');
+    const nestedSzIdx = remaining.toLowerCase().indexOf('.7z');
+    
+    const nestedIndices = [nestedZipIdx, nestedRarIdx, nestedSzIdx].filter(idx => idx !== -1);
+    if (nestedIndices.length > 0) {
+        const firstNestedIdx = Math.min(...nestedIndices);
+        const nestedArchiveEnd = firstNestedIdx + 4;
+        nested = remaining.substring(0, nestedArchiveEnd);
+        internalPath = remaining.substring(nestedArchiveEnd);
+        if (internalPath.startsWith('/')) {
+            internalPath = internalPath.substring(1);
+        }
+    }
+    
+    return {
+        archive: archive,
+        nested: nested,
+        path: internalPath
+    };
+}

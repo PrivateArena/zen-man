@@ -1,5 +1,6 @@
 import { state, getPaneDom, getActiveTab } from './state.js';
 import { renderFiles, updateSelectionUI, renderFilesListVirtual } from './file-list.js';
+import { parseVfsPath } from './utils.js';
 
 let renderTabsCallback = null;
 let _autoSaveCallback = null;
@@ -82,13 +83,19 @@ export async function navigateTo(path, recordHistory = true, paneId = state.acti
     updateSelectionUI(paneId);
 
     try {
-        let url = `/api/dir?path=${encodeURIComponent(path)}`;
-        if (tab.flatViewMode === 'mixed') {
-            url += '&flat=true';
-        } else if (tab.flatViewMode === 'mixed-no-folders') {
-            url += '&flat=true&no_folders=true';
-        } else if (tab.flatViewMode === 'grouped') {
-            url += '&flat=true';
+        const vfsInfo = parseVfsPath(path);
+        let url;
+        if (vfsInfo) {
+            url = `/api/archive/dir?archive=${encodeURIComponent(vfsInfo.archive)}&nested=${encodeURIComponent(vfsInfo.nested)}&path=${encodeURIComponent(vfsInfo.path)}`;
+        } else {
+            url = `/api/dir?path=${encodeURIComponent(path)}`;
+            if (tab.flatViewMode === 'mixed') {
+                url += '&flat=true';
+            } else if (tab.flatViewMode === 'mixed-no-folders') {
+                url += '&flat=true&no_folders=true';
+            } else if (tab.flatViewMode === 'grouped') {
+                url += '&flat=true';
+            }
         }
         
         const response = await fetch(url);

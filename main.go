@@ -78,6 +78,10 @@ func main() {
 	mux.HandleFunc("/api/index/status", api.HandleIndexStatus)
 	mux.HandleFunc("/api/index/config", api.HandleIndexConfig)
 	mux.HandleFunc("/api/index/cancel", api.HandleIndexCancel)
+	mux.HandleFunc("/api/archive/dir", api.HandleListArchiveDir)
+	mux.HandleFunc("/api/archive/stream", api.HandleStreamArchiveFile)
+	mux.HandleFunc("/api/archive/extract", api.HandleExtractArchive)
+	mux.HandleFunc("/api/archive/extract/status", api.HandleExtractStatus)
 
 	// Bind strictly to localhost loopback
 	addr := fmt.Sprintf("127.0.0.1:%d", *portFlag)

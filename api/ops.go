@@ -57,6 +57,28 @@ func HandleFileOp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// VFS Read-Only Guard check
+	isInsideArchive := func(p string) bool {
+		norm := filepath.ToSlash(p)
+		for _, ext := range []string{".zip/", ".rar/", ".7z/"} {
+			if strings.Contains(norm, ext) {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, src := range req.Sources {
+		if isInsideArchive(src) {
+			http.Error(w, `{"error": "vfs_readonly", "message": "Write operations not supported inside archives"}`, http.StatusMethodNotAllowed)
+			return
+		}
+	}
+	if isInsideArchive(req.Dest) {
+		http.Error(w, `{"error": "vfs_readonly", "message": "Write operations not supported inside archives"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
 	switch req.Op {
 	case "open":
 		handleOpen(w, req.Sources)
