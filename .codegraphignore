@@ -1,1 +1,4 @@
 frontend/
+*_test.go
+.scratch/
+_scratch/
