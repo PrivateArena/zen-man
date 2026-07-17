@@ -13,6 +13,7 @@ let selectedIndex = -1;
 let isSearchCapped = false;
 let totalMatched = 0;
 let scopeFilter = 'both';
+let useRegex = false;
 
 export function initQuickFind(navigateTo) {
     navigateToCallback = navigateTo;
@@ -37,6 +38,11 @@ export function openQuickFind() {
     document.querySelectorAll('#quick-find-scope-toggle .btn-scope').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.scope === savedScope);
     });
+
+    // Restore regex toggle from localStorage
+    const savedRegex = localStorage.getItem('quick-find-regex') === 'true';
+    useRegex = savedRegex;
+    document.getElementById('quick-find-btn-regex').classList.toggle('active', savedRegex);
 
     // Reset state
     input.value = '';
@@ -95,11 +101,14 @@ function setupModalListeners() {
     const btnDelete = document.getElementById('quick-find-btn-delete');
     const btnPasteInside = document.getElementById('quick-find-btn-paste-inside');
 
+    const btnRegex = document.getElementById('quick-find-btn-regex');
+
     overlay.addEventListener('click', onOverlayClick);
     input.addEventListener('input', onInputChanged);
     input.addEventListener('keydown', onInputKeyDown);
     recursiveCheck.addEventListener('change', onRecursiveToggle);
     scopeToggle.addEventListener('click', onScopeToggle);
+    btnRegex.addEventListener('click', onRegexToggle);
     btnCopy.addEventListener('click', onCopyFoundClick);
     btnCut.addEventListener('click', onCutFoundClick);
     btnCopyPath.addEventListener('click', onCopyPathFoundClick);
@@ -120,11 +129,14 @@ function removeModalListeners() {
     const btnDelete = document.getElementById('quick-find-btn-delete');
     const btnPasteInside = document.getElementById('quick-find-btn-paste-inside');
 
+    const btnRegex = document.getElementById('quick-find-btn-regex');
+
     overlay.removeEventListener('click', onOverlayClick);
     input.removeEventListener('input', onInputChanged);
     input.removeEventListener('keydown', onInputKeyDown);
     recursiveCheck.removeEventListener('change', onRecursiveToggle);
     scopeToggle.removeEventListener('click', onScopeToggle);
+    btnRegex.removeEventListener('click', onRegexToggle);
     btnCopy.removeEventListener('click', onCopyFoundClick);
     btnCut.removeEventListener('click', onCutFoundClick);
     btnCopyPath.removeEventListener('click', onCopyPathFoundClick);
@@ -173,6 +185,14 @@ function onScopeToggle(e) {
     updateActionButtonsState();
 }
 
+function onRegexToggle() {
+    useRegex = !useRegex;
+    localStorage.setItem('quick-find-regex', useRegex);
+    document.getElementById('quick-find-btn-regex').classList.toggle('active', useRegex);
+    // Refire search immediately if input has text
+    triggerSearch();
+}
+
 function onInputChanged() {
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
@@ -213,7 +233,7 @@ async function triggerSearch() {
     countLabel.textContent = 'Searching...';
 
     try {
-        const url = `/api/search?path=${encodeURIComponent(tab.currentPath)}&q=${encodeURIComponent(query)}&recursive=${recursive}`;
+        const url = `/api/search?path=${encodeURIComponent(tab.currentPath)}&q=${encodeURIComponent(query)}&recursive=${recursive}&regex=${useRegex}`;
         const response = await fetch(url, { signal });
         
         if (!response.ok) {
@@ -478,7 +498,7 @@ async function resolvePathsForAction() {
     countLabel.textContent = 'Fetching all matches...';
 
     try {
-        const url = `/api/search?path=${encodeURIComponent(tab.currentPath)}&q=${encodeURIComponent(query)}&recursive=${recursive}&limit=0`;
+        const url = `/api/search?path=${encodeURIComponent(tab.currentPath)}&q=${encodeURIComponent(query)}&recursive=${recursive}&regex=${useRegex}&limit=0`;
         const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`Failed to fetch all matching files: ${response.statusText}`);

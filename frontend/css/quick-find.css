@@ -20,8 +20,8 @@
 .quick-find-modal {
     background-color: var(--bg-card);
     border: 1px solid var(--border-color);
-    width: 650px;
-    max-width: 90vw;
+    width: 80vw;
+    max-width: 1200px;
     border-radius: 12px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 
                 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
@@ -89,6 +89,37 @@
 #quick-find-input:focus {
     border-color: var(--accent-color);
     box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.25);
+}
+
+/* Regex Toggle Button */
+.btn-regex-toggle {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    font-family: var(--font-stack);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    line-height: 1.2;
+    letter-spacing: 0.5px;
+}
+
+.btn-regex-toggle:hover {
+    color: var(--text-main);
+    background: var(--bg-hover);
+}
+
+.btn-regex-toggle.active {
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+    background: rgba(88, 101, 242, 0.1);
 }
 
 /* Recursive Toggle Checkbox */

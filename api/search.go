@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -59,16 +60,7 @@ func HandleSearch(w http.ResponseWriter, r *http.Request) {
 
 	searchQuery := r.URL.Query().Get("q")
 	recursive := r.URL.Query().Get("recursive") == "true"
-
-	// Split search query into lowercase tokens for multi-token FTS matching
-	rawTokens := strings.Fields(strings.ToLower(searchQuery))
-	var tokens []string
-	for _, t := range rawTokens {
-		trimmed := strings.TrimSpace(t)
-		if trimmed != "" {
-			tokens = append(tokens, trimmed)
-		}
-	}
+	useRegex := r.URL.Query().Get("regex") == "true"
 
 	ctx := r.Context()
 	var matches []SearchEntry
@@ -85,18 +77,39 @@ func HandleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	capped := false
 
-	// Helper to check if name matches all query tokens
-	matchesQuery := func(name string) bool {
-		if len(tokens) == 0 {
-			return true
+	// Helper to check if name matches the query
+	var matchesQuery func(name string) bool
+	if useRegex && searchQuery != "" {
+		re, err := regexp.Compile(`(?i)` + searchQuery)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Invalid regex: %v"}`, err), http.StatusBadRequest)
+			return
 		}
-		lowerName := strings.ToLower(name)
-		for _, token := range tokens {
-			if !strings.Contains(lowerName, token) {
-				return false
+		matchesQuery = func(name string) bool {
+			return re.MatchString(name)
+		}
+	} else {
+		// Split search query into lowercase tokens for multi-token substring matching
+		rawTokens := strings.Fields(strings.ToLower(searchQuery))
+		var tokens []string
+		for _, t := range rawTokens {
+			trimmed := strings.TrimSpace(t)
+			if trimmed != "" {
+				tokens = append(tokens, trimmed)
 			}
 		}
-		return true
+		matchesQuery = func(name string) bool {
+			if len(tokens) == 0 {
+				return true
+			}
+			lowerName := strings.ToLower(name)
+			for _, token := range tokens {
+				if !strings.Contains(lowerName, token) {
+					return false
+				}
+			}
+			return true
+		}
 	}
 
 	if recursive {
