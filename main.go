@@ -2,19 +2,54 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"zen-man/api"
 )
 
 //go:embed frontend/*
 var embeddedFrontend embed.FS
+
+// canCreateSymlink is probed once at startup via a temporary os.Symlink call.
+// On Windows this detects Developer Mode / admin privileges; on Linux/macOS
+// it always succeeds.
+var canCreateSymlink bool
+
+func init() {
+	canCreateSymlink = probeSymlinkSupport()
+}
+
+func probeSymlinkSupport() bool {
+	tmpDir, err := os.MkdirTemp("", "zen-man-symlink-probe-*")
+	if err != nil {
+		return false
+	}
+	defer os.RemoveAll(tmpDir)
+
+	target := filepath.Join(tmpDir, "target")
+	link := filepath.Join(tmpDir, "link")
+
+	// Create a zero-byte temp file
+	if err := os.WriteFile(target, []byte{}, 0644); err != nil {
+		return false
+	}
+
+	if err := os.Symlink(target, link); err != nil {
+		return false
+	}
+
+	// Clean up is deferred via RemoveAll above
+	return true
+}
 
 func openBrowser(url string) {
 	var err error
@@ -103,9 +138,10 @@ func main() {
 	}
 }
 
-// Dummy handler implementations for initial compilation
-
 func handleProperties(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"name": "", "size": 0}`))
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"symlink_supported": canCreateSymlink,
+		"platform":          runtime.GOOS,
+	})
 }

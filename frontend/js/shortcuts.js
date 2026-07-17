@@ -15,6 +15,7 @@ export const SHORTCUTS = {
     'rename': 'F2',
     'delete': 'Del',
     'paste': 'Ctrl+V',
+    'paste-link': 'Ctrl+Alt+V',
     'create-folder': 'Ctrl+Shift+N',
     
     // Non-context-menu global shortcuts

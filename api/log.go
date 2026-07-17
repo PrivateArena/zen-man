@@ -28,6 +28,7 @@ const (
 	ActionRename    ActionType = 5 // file renamed in same directory — reversible
 	ActionMkdir     ActionType = 6 // new empty directory created — reversible if still empty
 	ActionChmod     ActionType = 7 // change file permissions
+	ActionPasteLink ActionType = 8 // symlinks created at dest, reversible
 )
 
 // StatusType tracks the lifecycle of a log record.
@@ -46,6 +47,7 @@ var actionNames = map[ActionType]string{
 	ActionRename:    "rename",
 	ActionMkdir:     "mkdir",
 	ActionChmod:     "chmod",
+	ActionPasteLink: "paste-link",
 }
 
 // ActionRecord is the decoded, in-memory form of one log entry.
@@ -596,7 +598,7 @@ func verifyCRC(raw []byte) bool {
 }
 
 func isReversible(a ActionType) bool {
-	return a == ActionPasteCopy || a == ActionPasteMove || a == ActionRename || a == ActionMkdir
+	return a == ActionPasteCopy || a == ActionPasteMove || a == ActionRename || a == ActionMkdir || a == ActionPasteLink
 }
 
 // ── HTTP Handlers ─────────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import { getIsBatchRenameActive, cancelBatchRename } from './batch-rename.js';
 import { 
     triggerClipboard, 
     triggerPaste, 
+    triggerPasteLink,
     triggerRename, 
     triggerDelete, 
     triggerOpen,
@@ -220,6 +221,7 @@ export function handleKeyboardShortcuts(e) {
         'copy': () => triggerClipboard('copy'),
         'cut': () => triggerClipboard('cut'),
         'paste': () => triggerPaste(),
+        'paste-link': () => triggerPasteLink(),
         'copy-name': () => triggerCopyName(),
         'copy-path': () => triggerCopyPath(),
         'open-in-new-tab': () => {

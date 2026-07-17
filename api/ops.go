@@ -110,6 +110,8 @@ func HandleFileOp(w http.ResponseWriter, r *http.Request) {
 		handleRename(w, req.Sources, req.Name)
 	case "mkdir":
 		handleMkdir(w, req.Dest, req.Name)
+	case "paste_link":
+		handlePasteLink(w, req)
 	case "chmod":
 		handleChmod(w, req.Sources, req.Name)
 	default:
@@ -832,6 +834,92 @@ func isSubdir(parent, child string) bool {
 	}
 	parentWithSlash := parent + string(filepath.Separator)
 	return strings.HasPrefix(child, parentWithSlash)
+}
+
+func handlePasteLink(w http.ResponseWriter, req OpRequest) {
+	if req.Dest == "" {
+		http.Error(w, `{"error": "Destination folder not specified"}`, http.StatusBadRequest)
+		return
+	}
+
+	clipboardMutex.Lock()
+	paths := make([]string, len(currentClipboard.Sources))
+	copy(paths, currentClipboard.Sources)
+	clipboardMutex.Unlock()
+
+	if len(paths) == 0 {
+		http.Error(w, `{"error": "Clipboard is empty"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Check for existing destinations via Lstat (does NOT follow symlinks)
+	var conflicts []string
+	if !req.Merge {
+		for _, src := range paths {
+			dst := filepath.Join(req.Dest, filepath.Base(src))
+			if _, err := os.Lstat(dst); err == nil {
+				conflicts = append(conflicts, filepath.Base(src))
+			}
+		}
+	}
+
+	if len(conflicts) > 0 {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":    "conflict",
+			"conflicts": conflicts,
+		})
+		return
+	}
+
+	var lastErr error
+	var createdEntries []FileEntry
+
+	for _, src := range paths {
+		name := filepath.Base(src)
+		dst := filepath.Join(req.Dest, name)
+
+		if req.Merge {
+			if err := os.Remove(dst); err != nil && !os.IsNotExist(err) {
+				lastErr = err
+				continue
+			}
+		}
+
+		if err := os.Symlink(src, dst); err != nil {
+			lastErr = err
+			continue
+		}
+
+		// Collect entry info via Lstat (do NOT follow the link)
+		if fi, err := os.Lstat(dst); err == nil {
+			createdEntries = append(createdEntries, FileEntry{
+				Name:    fi.Name(),
+				IsDir:   fi.IsDir(),
+				IsSymlink: fi.Mode()&os.ModeSymlink != 0,
+				Size:    fi.Size(),
+				ModTime: fi.ModTime().Unix(),
+				Mode:    fi.Mode().String(),
+			})
+		}
+	}
+
+	// NEVER clear clipboard — paste-link is non-destructive
+	// Log the operation
+	GetLog().Append(ActionPasteLink, paths, req.Dest, "")
+
+	if lastErr != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Paste link operation encountered errors: %v"}`, lastErr), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":    "success",
+		"operation": "link",
+		"sources":   paths,
+		"entries":   createdEntries,
+	})
 }
 
 func handleChmod(w http.ResponseWriter, sources []string, modeStr string) {

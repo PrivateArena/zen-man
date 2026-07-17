@@ -100,6 +100,7 @@ function setupModalListeners() {
     const btnCopyName = document.getElementById('quick-find-btn-copy-name');
     const btnDelete = document.getElementById('quick-find-btn-delete');
     const btnPasteInside = document.getElementById('quick-find-btn-paste-inside');
+    const btnPasteLinkInside = document.getElementById('quick-find-btn-paste-link-inside');
 
     const btnRegex = document.getElementById('quick-find-btn-regex');
 
@@ -115,6 +116,7 @@ function setupModalListeners() {
     btnCopyName.addEventListener('click', onCopyNameFoundClick);
     btnDelete.addEventListener('click', onDeleteFoundClick);
     btnPasteInside.addEventListener('click', onPasteInsideFoundClick);
+    btnPasteLinkInside.addEventListener('click', onPasteLinkInsideFoundClick);
 }
 
 function removeModalListeners() {
@@ -128,6 +130,7 @@ function removeModalListeners() {
     const btnCopyName = document.getElementById('quick-find-btn-copy-name');
     const btnDelete = document.getElementById('quick-find-btn-delete');
     const btnPasteInside = document.getElementById('quick-find-btn-paste-inside');
+    const btnPasteLinkInside = document.getElementById('quick-find-btn-paste-link-inside');
 
     const btnRegex = document.getElementById('quick-find-btn-regex');
 
@@ -143,6 +146,7 @@ function removeModalListeners() {
     btnCopyName.removeEventListener('click', onCopyNameFoundClick);
     btnDelete.removeEventListener('click', onDeleteFoundClick);
     btnPasteInside.removeEventListener('click', onPasteInsideFoundClick);
+    btnPasteLinkInside.removeEventListener('click', onPasteLinkInsideFoundClick);
 }
 
 function onOverlayClick(e) {
@@ -438,6 +442,7 @@ function updateActionButtonsState() {
     const btnCopyName = document.getElementById('quick-find-btn-copy-name');
     const btnDelete = document.getElementById('quick-find-btn-delete');
     const btnPasteInside = document.getElementById('quick-find-btn-paste-inside');
+    const btnPasteLinkInside = document.getElementById('quick-find-btn-paste-link-inside');
     
     if (btnCopy) btnCopy.disabled = !hasResults;
     if (btnCut) btnCut.disabled = !hasResults;
@@ -453,6 +458,17 @@ function updateActionButtonsState() {
             const hasFolders = searchResults.some(item => item.is_dir);
             const hasClipboard = state.clipboard && state.clipboard.op && state.clipboard.items && state.clipboard.items.length > 0;
             btnPasteInside.disabled = !(hasResults && hasFolders && hasClipboard);
+        }
+    }
+
+    // Paste Link Inside: same visibility logic as Paste Inside
+    if (btnPasteLinkInside) {
+        const showPasteLinkInside = scopeFilter === 'folder';
+        btnPasteLinkInside.style.display = showPasteLinkInside ? '' : 'none';
+        if (showPasteLinkInside) {
+            const hasFolders = searchResults.some(item => item.is_dir);
+            const hasClipboard = state.clipboard && state.clipboard.op && state.clipboard.items && state.clipboard.items.length > 0;
+            btnPasteLinkInside.disabled = !(hasResults && hasFolders && hasClipboard);
         }
     }
 }
@@ -594,6 +610,83 @@ async function onPasteInsideFoundClick() {
     const infoEl = getPaneDom(state.activePane).querySelector('.status-info');
     if (infoEl) {
         infoEl.textContent = `Pasted into ${successCount} folder(s) (${failCount} failed)`;
+    }
+
+    closeQuickFind();
+}
+
+async function onPasteLinkInsideFoundClick() {
+    const tab = getActiveTab();
+    if (!tab || !searchResults || searchResults.length === 0) return;
+
+    const hasClipboard = state.clipboard && state.clipboard.op && state.clipboard.items && state.clipboard.items.length > 0;
+    if (!hasClipboard) {
+        alert('Nothing to paste - clipboard is empty.');
+        return;
+    }
+
+    // Collect only folder paths from the filtered results
+    const folderPaths = searchResults
+        .filter(item => item.is_dir)
+        .map(item => tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + item.rel_path);
+
+    if (folderPaths.length === 0) {
+        alert('No folders found in results to paste into.');
+        return;
+    }
+
+    const itemCount = state.clipboard.items.length;
+    const folderCount = folderPaths.length;
+    const confirmMsg = `Are you sure you want to create symlinks for ${itemCount} clipboard item(s) inside ${folderCount} folder(s)?`;
+    if (!confirm(confirmMsg)) return;
+
+    const countLabel = document.getElementById('quick-find-count');
+    const prevText = countLabel.textContent;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < folderPaths.length; i++) {
+        const folderPath = folderPaths[i];
+        countLabel.textContent = `Linking into folder ${i + 1} of ${folderCount}...`;
+        try {
+            let data = await executeFileOp('paste_link', [], folderPath);
+            if (data.status === 'conflict') {
+                const conflictNames = (data.conflicts || []).join(', ');
+                const overwriteConfirm = confirm(`Entry(s) "${conflictNames}" already exist at "${folderPath}". Overwrite with symlinks?`);
+                if (!overwriteConfirm) {
+                    failCount++;
+                    continue;
+                }
+                data = await executeFileOp('paste_link', [], folderPath, null, true);
+            }
+            successCount++;
+        } catch (err) {
+            failCount++;
+            console.error(`Paste link into ${folderPath} failed:`, err);
+        }
+    }
+
+    // NEVER clear clipboard - paste-link is non-destructive
+
+    // Refresh UI for all panes
+    Object.keys(state.panes).forEach(paneId => {
+        const pane = state.panes[paneId];
+        const activeTab = pane.tabs.find(t => t.id === pane.activeTabId);
+        if (activeTab) {
+            renderFiles(paneId);
+            updateSelectionUI(paneId);
+            const infoEl = getPaneDom(paneId).querySelector('.status-info');
+            if (infoEl) {
+                infoEl.textContent = `${activeTab.loadedEntries.length} items`;
+            }
+        }
+    });
+
+    countLabel.textContent = prevText;
+    const infoEl = getPaneDom(state.activePane).querySelector('.status-info');
+    if (infoEl) {
+        infoEl.textContent = `Linked into ${successCount} folder(s) (${failCount} failed)`;
     }
 
     closeQuickFind();

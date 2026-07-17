@@ -306,3 +306,100 @@ btnPasteLinkInside.addEventListener('click', onPasteLinkInsideFoundClick);
 - [ ] **Relative symlink mode**: Separate menu item? Global preference? Deferred.
 - [ ] **Windows capability probe**: Probe at startup via temp-file `os.Symlink` rather than `runtime.GOOS` check?
 - [ ] **Shortcut**: Reserve `Ctrl+Alt+V` for Paste Link?
+
+---
+
+## Answers to Open Questions
+
+### Q1: `is_symlink` in `FileEntry` — eager `os.Lstat` per entry, or lazy on hover/click?
+
+**Answer: Eager detection via `fs.DirEntry.Type()` (zero additional syscalls).**
+
+**Evidence:**
+
+1. `FileEntry` is defined in `api/dir.go:17-26` with only `IsDir bool` as the type discriminator. It is consumed in 6+ backend files and 4 frontend modules (`file-list.js`, `quick-find.js`, `context-menu.js`, `search-manager.js`).
+
+2. `HandleReadDirectory` (`api/dir.go:186`) uses `os.ReadDir`, which returns `fs.DirEntry` values that **do not follow symlinks**. The `sortableEntry` struct at `api/dir.go:65-71` wraps `fs.DirEntry` directly.
+
+3. `fs.DirEntry.Type()` is already used elsewhere in the codebase for symlink detection without `Lstat`:
+   - `api/search_index_walker.go:313`: `d.Type()&fs.ModeSymlink != 0`
+   - This call does **not** perform a syscall — the type is returned by `os.ReadDir` from the kernel's `getdents`/`ReadDir` syscall.
+
+4. Frontend impact: `entry.is_dir` (`is_dir` in JSON) drives icon selection (`file-list.js:156`), sort ordering (`file-list.js:354`), navigation behavior (`file-list.js:275`), and drag behavior. A symlink-to-directory currently appears as `📄` and opens as a file rather than navigating in, confirming the display gap.
+
+5. Lazy-on-hover would require an extra API call per hover event (or a batch prefetch), adding latency and frontend complexity. The plan's own §9 explicitly notes: *"A dedicated `is_symlink bool` field in `FileEntry` + a distinct 🔗 icon is a clean, isolated follow-up PR."*
+
+**Recommended implementation:** Add `IsSymlink bool \`json:"is_symlink"\`` to `FileEntry` at `api/dir.go:17-26`, populate it at the single build site `api/dir.go:258-267` using `entry.Type()&fs.ModeSymlink != 0` (no `Lstat` syscall), and add corresponding display logic in `frontend/js/file-list.js`. This is the approach with the lowest risk and cleanest separation.
+
+---
+
+### Q2: Relative symlink mode — separate menu item, global preference, or deferred?
+
+**Answer: Deferred to v1.1 (current plan decision is correct). Separate menu item would be the right UI shape when implemented.**
+
+**Evidence:**
+
+1. The plan at §3 and §10 already records *"Relative symlinks explicitly deferred to v1.1"* with sound rationale: all clipboard sources are absolute paths set by `handleClipboardSet` (`api/ops.go:86-102`), and relative targets require `filepath.Rel` plus same-filesystem checks that add cross-volume edge cases on Windows.
+
+2. There is no existing global preference/config infrastructure beyond the JSON config files under `~/.config/zen-man/` (places, actions, search config) and the `CustomAction`/`Config` types in `api/places.go`. Adding a new preference dimension would require plumbing through the existing config loader.
+
+3. A separate menu item (e.g., "Paste Link (Relative)") is the cleanest UX because it mirrors the existing pattern: `paste` vs `paste-inside` are separate actions, not toggles. A global preference would force the user to switch modes across sessions, which is worse for discoverability.
+
+4. Implementation scope for v1.1: a new `paste_link_relative` op in `HandleFileOp` (`api/ops.go:39`), a `calculateRelativeTarget(src, dst)` helper, and a new context-menu item `data-action="paste-link-relative"` in `frontend/js/context-menu.js:46-130`.
+
+---
+
+### Q3: Windows capability probe — runtime temp-file `os.Symlink` probe vs. `runtime.GOOS` check?
+
+**Answer: Runtime probe via temp `os.Symlink` is more robust; however, the current `/api/props` endpoint is a stub not wired to the frontend.**
+
+**Evidence:**
+
+1. `handleProperties` in `main.go:108-111` is a dummy returning `{"name": "", "size": 0}`. It is registered at `/api/props` (`main.go:72`). No frontend code calls `/api/props` or `handleProperties` (verified via grep across all `.js` files — zero matches).
+
+2. The plan at §2 proposes surfacing `runtime.GOOS` as a capability flag via `/api/properties`. A GOOS-only check is insufficient on Windows because symlink creation can succeed with Developer Mode or admin privileges, and fail otherwise — the actual capability is not the OS version but the privilege state.
+
+3. A startup probe (`os.Symlink` + `os.Remove` on a temp file) gives an authoritative boolean (`canCreateSymlinks`). It costs one syscall at server startup and caches the result. This is what the plan's own red-team critique recommended.
+
+4. Before implementing, the endpoint must be promoted from stub to real. The minimal shape:
+   ```go
+   func handleProperties(w http.ResponseWriter, r *http.Request) {
+       json.NewEncoder(w).Encode(map[string]interface{}{
+           "symlink_supported": canCreateSymlink, // probed at init
+       })
+   }
+   ```
+   Then the frontend reads it once at startup (or on first symlink-paste action) and disables the buttons with a tooltip.
+
+**Confidence note:** This question has moderate uncertainty because the probe outcome depends on the Windows privilege state of the running user, which is environment-specific. The backend implementation is clear; the frontend wiring is not yet designed.
+
+---
+
+### Q4: Shortcut — reserve `Ctrl+Alt+V` for Paste Link?
+
+**Answer: Yes, `Ctrl+Alt+V` is unreserved and is the correct choice. Add `paste-link: 'Ctrl+Alt+V'` to `SHORTCUTS` in `frontend/js/shortcuts.js:5-30` and a handler in `frontend/js/keyboard.js:202-250`.**
+
+**Evidence:**
+
+1. The current `SHORTCUTS` map (`frontend/js/shortcuts.js:5-30`) contains:
+   - `paste: 'Ctrl+V'` (line 17)
+   - `paste-inside: 'Alt+V'` (line 14)
+   - `copy-name: 'Ctrl+Alt+C'` (line 10)
+   - No `Ctrl+Alt+V` binding exists.
+
+2. `keyboard.js:202-250` dispatches via a `handlers` map keyed by action name. Adding a `'paste-link'` entry that calls `triggerPasteLink()` (to be exported from `context-menu.js`) follows the exact existing pattern.
+
+3. The modifier convention is consistent: `Alt+V` → paste-inside, so `Ctrl+Alt+V` → paste-link is a natural escalation. The `Ctrl+Alt` chord is already used for `copy-name` (`Ctrl+Alt+C`), so the pattern is established.
+
+4. Potential conflict: on some Linux desktop environments (e.g., GNOME), `Ctrl+Alt+V` may be bound to "Paste as plain text" or similar. This is an OS-level concern that the frontend cannot prevent, but it is a minority configuration. Document it in the plan's §8 failure modes if concerned.
+
+---
+
+### Summary Table
+
+| Question | Verdict | Key Evidence |
+|:---|:---|:---|
+| `is_symlink` eager vs lazy | **Eager via `DirEntry.Type()`, zero extra syscalls** | `search_index_walker.go:313` already uses this pattern; `os.ReadDir` returns non-followed DirEntry |
+| Relative symlink mode UI | **Deferred; separate menu item when implemented** | No existing pref system; mirror `paste`/`paste-inside` pattern |
+| Windows capability probe | **Runtime probe preferred; `/api/props` is currently unused stub** | `main.go:108-111` is dummy; no JS consumer exists |
+| Shortcut for Paste Link | **`Ctrl+Alt+V` — unreserved, consistent with existing conventions** | `shortcuts.js:5-30`; `keyboard.js:202-250` dispatcher pattern |

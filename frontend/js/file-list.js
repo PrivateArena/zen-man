@@ -153,8 +153,8 @@ export function renderFilesListVirtual(paneId) {
             const entry = row.entry;
             const entryPathSuffix = entry.rel_path || entry.name;
             const fullPath = tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + entryPathSuffix;
-            const icon = entry.is_dir ? '📁' : '📄';
-            const iconClass = entry.is_dir ? 'icon-folder' : 'icon-file';
+            const icon = entry.is_symlink ? '🔗' : (entry.is_dir ? '📁' : '📄');
+            const iconClass = entry.is_symlink ? 'icon-symlink' : (entry.is_dir ? 'icon-folder' : 'icon-file');
             const isSelected = tab.selectedPaths.has(fullPath) ? 'selected' : '';
             let sizeStr = '--';
             if (entry.is_dir) {
@@ -219,8 +219,8 @@ export function renderFilesGrid(paneId) {
     let html = '';
     tab.loadedEntries.forEach(entry => {
         const fullPath = tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + entry.name;
-        const icon = entry.is_dir ? '📁' : '📄';
-        const iconClass = entry.is_dir ? 'icon-folder' : 'icon-file';
+        const icon = entry.is_symlink ? '🔗' : (entry.is_dir ? '📁' : '📄');
+        const iconClass = entry.is_symlink ? 'icon-symlink' : (entry.is_dir ? 'icon-folder' : 'icon-file');
         const isSelected = tab.selectedPaths.has(fullPath) ? 'selected' : '';
 
         html += `

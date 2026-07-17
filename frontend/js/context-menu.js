@@ -61,15 +61,18 @@ export function showContextMenu(e, targetPath, isDir, isItem) {
                     <span class="context-menu-shortcut">${getShortcutDisplay('cut-inside')}</span>
                 </div>
             `;
-            const hasClipboard = state.clipboard && state.clipboard.op;
-            if (hasClipboard) {
-                html += `
-                    <div class="context-menu-item" data-action="paste-inside" data-target-path="${targetPath}">
-                        <span>Paste Inside</span>
-                        <span class="context-menu-shortcut">${getShortcutDisplay('paste-inside')}</span>
-                    </div>
-                `;
-            }
+			const hasClipboard = state.clipboard && state.clipboard.op;
+			if (hasClipboard) {
+				html += `
+					<div class="context-menu-item" data-action="paste-inside" data-target-path="${targetPath}">
+						<span>Paste Inside</span>
+						<span class="context-menu-shortcut">${getShortcutDisplay('paste-inside')}</span>
+					</div>
+					<div class="context-menu-item" data-action="paste-link-inside" data-target-path="${targetPath}">
+						<span>Paste Link Inside</span>
+					</div>
+				`;
+			}
             html += `<div class="context-menu-separator"></div>`;
         }
         html += `
@@ -107,19 +110,29 @@ export function showContextMenu(e, targetPath, isDir, isItem) {
                 <span class="context-menu-shortcut">${getShortcutDisplay('delete')}</span>
             </div>
         `;
-    } else {
-        html += `
-            <div class="context-menu-item" data-action="paste">
-                <span>Paste</span>
-                <span class="context-menu-shortcut">${getShortcutDisplay('paste')}</span>
-            </div>
-            <div class="context-menu-separator"></div>
-            <div class="context-menu-item" data-action="create-folder">
-                <span>New Folder</span>
-                <span class="context-menu-shortcut">${getShortcutDisplay('create-folder')}</span>
-            </div>
-        `;
-    }
+	} else {
+		const hasClipboard = state.clipboard && state.clipboard.op;
+		html += `
+			<div class="context-menu-item" data-action="paste">
+				<span>Paste</span>
+				<span class="context-menu-shortcut">${getShortcutDisplay('paste')}</span>
+			</div>
+		`;
+		if (hasClipboard) {
+			html += `
+				<div class="context-menu-item" data-action="paste-link">
+					<span>Paste Link</span>
+				</div>
+			`;
+		}
+		html += `
+			<div class="context-menu-separator"></div>
+			<div class="context-menu-item" data-action="create-folder">
+				<span>New Folder</span>
+				<span class="context-menu-shortcut">${getShortcutDisplay('create-folder')}</span>
+			</div>
+		`;
+	}
 
     const customHtml = getActionsForContext(isDir, isItem, targetPath);
     if (customHtml) {
@@ -352,6 +365,60 @@ export async function triggerPaste(destPath = null) {
         });
     } catch (err) {
         alert(`Paste failed: ${err.message}`);
+    }
+}
+
+export async function triggerPasteLink(destPath = null) {
+    const tab = getActiveTab();
+    if (!tab) return;
+    try {
+        const targetDest = destPath || tab.currentPath;
+        let data = await executeFileOp('paste_link', [], targetDest);
+        
+        if (data.status === 'conflict') {
+            const confirmOverwrite = confirm(`Entry(s) "${data.conflicts.join(', ')}" already exist at the destination. Overwrite with new symlinks?`);
+            if (!confirmOverwrite) {
+                return;
+            }
+            data = await executeFileOp('paste_link', [], targetDest, null, true);
+        }
+        
+        const { entries } = data;
+        
+        if (entries && entries.length > 0) {
+            Object.keys(state.panes).forEach(paneId => {
+                const pane = state.panes[paneId];
+                pane.tabs.forEach(t => {
+                    if (t.currentPath === targetDest) {
+                        const newNames = new Set(entries.map(e => e.name));
+                        t.loadedEntries = t.loadedEntries.filter(e => !newNames.has(e.name));
+                        t.loadedEntries.push(...entries);
+                        t.loadedEntries.sort((a, b) => {
+                            if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+                            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+                        });
+                    }
+                });
+            });
+        }
+        
+        // NEVER clear clipboard - paste-link is non-destructive
+        
+        Object.keys(state.panes).forEach(paneId => {
+            const pane = state.panes[paneId];
+            const activeTab = pane.tabs.find(t => t.id === pane.activeTabId);
+            if (activeTab) {
+                renderFiles(paneId);
+                updateSelectionUI(paneId);
+                
+                const infoEl = getPaneDom(paneId).querySelector('.status-info');
+                if (infoEl) {
+                    infoEl.textContent = `${activeTab.loadedEntries.length} items`;
+                }
+            }
+        });
+    } catch (err) {
+        alert(`Paste Link failed: ${err.message}`);
     }
 }
 
@@ -596,6 +663,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 triggerPaste();
             } else if (action === 'paste-inside') {
                 triggerPaste(targetPath);
+            } else if (action === 'paste-link') {
+                triggerPasteLink();
+            } else if (action === 'paste-link-inside') {
+                triggerPasteLink(targetPath);
             } else if (action === 'create-folder') {
                 triggerCreateFolder();
             } else if (action === 'close-tab') {

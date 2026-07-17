@@ -9,8 +9,9 @@ import (
 )
 
 // RevertRecord undoes the filesystem effect of a completed action.
-// Only ActionPasteCopy, ActionPasteMove, ActionRename, and ActionMkdir
-// can be reverted.  ActionDelete is permanent (SSD — no recovery path).
+// Only ActionPasteCopy, ActionPasteMove, ActionRename, ActionMkdir, and
+// ActionPasteLink can be reverted.  ActionDelete is permanent (SSD — no
+// recovery path).
 func RevertRecord(rec ActionRecord) error {
 	switch rec.Action {
 	case ActionPasteCopy:
@@ -21,11 +22,32 @@ func RevertRecord(rec ActionRecord) error {
 		return revertRename(rec)
 	case ActionMkdir:
 		return revertMkdir(rec)
+	case ActionPasteLink:
+		return revertPasteLink(rec)
 	case ActionDelete:
 		return fmt.Errorf("delete is permanent on SSD — recovery requires a backup")
 	default:
 		return fmt.Errorf("action '%s' produces no filesystem change to revert", rec.ActionStr)
 	}
+}
+
+// revertPasteLink removes only the symlink(s) at rec.Dest.
+// os.Remove (NOT RemoveAll) is intentional — removes exactly the link,
+// never the target.
+func revertPasteLink(rec ActionRecord) error {
+	if rec.Dest == "" {
+		return fmt.Errorf("paste-link record has no dest")
+	}
+	for _, src := range rec.Sources {
+		dstPath := filepath.Join(rec.Dest, filepath.Base(src))
+		if _, err := os.Lstat(dstPath); os.IsNotExist(err) {
+			continue // idempotent
+		}
+		if err := os.Remove(dstPath); err != nil {
+			return fmt.Errorf("revert paste-link: %q: %w", dstPath, err)
+		}
+	}
+	return nil
 }
 
 // revertPasteCopy removes the files/dirs that were copied into rec.Dest.
