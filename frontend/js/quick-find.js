@@ -8,8 +8,11 @@ let navigateToCallback = null;
 let activeAbortController = null;
 let debounceTimeout = null;
 let searchResults = [];
+let allResults = [];
 let selectedIndex = -1;
 let isSearchCapped = false;
+let totalMatched = 0;
+let scopeFilter = 'both';
 
 export function initQuickFind(navigateTo) {
     navigateToCallback = navigateTo;
@@ -28,11 +31,20 @@ export function openQuickFind() {
     const savedRecursive = localStorage.getItem('quick-find-recursive') === 'true';
     recursiveCheck.checked = savedRecursive;
 
+    // Restore scope filter from localStorage
+    const savedScope = localStorage.getItem('quick-find-scope') || 'both';
+    scopeFilter = savedScope;
+    document.querySelectorAll('#quick-find-scope-toggle .btn-scope').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.scope === savedScope);
+    });
+
     // Reset state
     input.value = '';
     searchResults = [];
+    allResults = [];
     selectedIndex = -1;
     isSearchCapped = false;
+    totalMatched = 0;
     pathLabel.textContent = `Finding in: ${tab.currentPath}`;
     updateActionButtonsState();
     
@@ -75,42 +87,50 @@ function setupModalListeners() {
     const overlay = document.getElementById('quick-find-overlay');
     const input = document.getElementById('quick-find-input');
     const recursiveCheck = document.getElementById('quick-find-recursive');
+    const scopeToggle = document.getElementById('quick-find-scope-toggle');
     const btnCopy = document.getElementById('quick-find-btn-copy');
     const btnCut = document.getElementById('quick-find-btn-cut');
     const btnCopyPath = document.getElementById('quick-find-btn-copy-path');
     const btnCopyName = document.getElementById('quick-find-btn-copy-name');
     const btnDelete = document.getElementById('quick-find-btn-delete');
+    const btnPasteInside = document.getElementById('quick-find-btn-paste-inside');
 
     overlay.addEventListener('click', onOverlayClick);
     input.addEventListener('input', onInputChanged);
     input.addEventListener('keydown', onInputKeyDown);
     recursiveCheck.addEventListener('change', onRecursiveToggle);
+    scopeToggle.addEventListener('click', onScopeToggle);
     btnCopy.addEventListener('click', onCopyFoundClick);
     btnCut.addEventListener('click', onCutFoundClick);
     btnCopyPath.addEventListener('click', onCopyPathFoundClick);
     btnCopyName.addEventListener('click', onCopyNameFoundClick);
     btnDelete.addEventListener('click', onDeleteFoundClick);
+    btnPasteInside.addEventListener('click', onPasteInsideFoundClick);
 }
 
 function removeModalListeners() {
     const overlay = document.getElementById('quick-find-overlay');
     const input = document.getElementById('quick-find-input');
     const recursiveCheck = document.getElementById('quick-find-recursive');
+    const scopeToggle = document.getElementById('quick-find-scope-toggle');
     const btnCopy = document.getElementById('quick-find-btn-copy');
     const btnCut = document.getElementById('quick-find-btn-cut');
     const btnCopyPath = document.getElementById('quick-find-btn-copy-path');
     const btnCopyName = document.getElementById('quick-find-btn-copy-name');
     const btnDelete = document.getElementById('quick-find-btn-delete');
+    const btnPasteInside = document.getElementById('quick-find-btn-paste-inside');
 
     overlay.removeEventListener('click', onOverlayClick);
     input.removeEventListener('input', onInputChanged);
     input.removeEventListener('keydown', onInputKeyDown);
     recursiveCheck.removeEventListener('change', onRecursiveToggle);
+    scopeToggle.removeEventListener('click', onScopeToggle);
     btnCopy.removeEventListener('click', onCopyFoundClick);
     btnCut.removeEventListener('click', onCutFoundClick);
     btnCopyPath.removeEventListener('click', onCopyPathFoundClick);
     btnCopyName.removeEventListener('click', onCopyNameFoundClick);
     btnDelete.removeEventListener('click', onDeleteFoundClick);
+    btnPasteInside.removeEventListener('click', onPasteInsideFoundClick);
 }
 
 function onOverlayClick(e) {
@@ -124,6 +144,33 @@ function onRecursiveToggle() {
     localStorage.setItem('quick-find-recursive', recursiveCheck.checked);
     // Refire search immediately if input has text
     triggerSearch();
+}
+
+function onScopeToggle(e) {
+    const btn = e.target.closest('.btn-scope');
+    if (!btn) return;
+
+    const scope = btn.dataset.scope;
+    if (scope === scopeFilter) return;
+
+    scopeFilter = scope;
+    localStorage.setItem('quick-find-scope', scope);
+
+    document.querySelectorAll('#quick-find-scope-toggle .btn-scope').forEach(b => {
+        b.classList.toggle('active', b.dataset.scope === scope);
+    });
+
+    // Re-filter existing results without re-searching
+    if (allResults.length > 0) {
+        searchResults = scopeFilter === 'both'
+            ? [...allResults]
+            : allResults.filter(item => scopeFilter === 'folder' ? item.is_dir : !item.is_dir);
+        selectedIndex = searchResults.length > 0 ? 0 : -1;
+        renderSearchResults();
+        updateScopeCountLabel();
+    }
+
+    updateActionButtonsState();
 }
 
 function onInputChanged() {
@@ -149,8 +196,10 @@ async function triggerSearch() {
 
     if (query === '') {
         searchResults = [];
+        allResults = [];
         selectedIndex = -1;
         isSearchCapped = false;
+        totalMatched = 0;
         resultsContainer.innerHTML = '';
         countLabel.textContent = '';
         updateActionButtonsState();
@@ -173,18 +222,18 @@ async function triggerSearch() {
 
         const data = await response.json();
         
-        searchResults = data.entries || [];
-        selectedIndex = searchResults.length > 0 ? 0 : -1;
+        allResults = data.entries || [];
         isSearchCapped = data.capped || false;
-        renderSearchResults();
-        updateActionButtonsState();
+        totalMatched = data.total_matched || allResults.length;
 
-        const count = data.total_matched;
-        if (data.capped) {
-            countLabel.textContent = `${count}+ matches (capped)`;
-        } else {
-            countLabel.textContent = `${count} match${count === 1 ? '' : 'es'}`;
-        }
+        // Apply scope filter client-side
+        searchResults = scopeFilter === 'both'
+            ? [...allResults]
+            : allResults.filter(item => scopeFilter === 'folder' ? item.is_dir : !item.is_dir);
+        selectedIndex = searchResults.length > 0 ? 0 : -1;
+        renderSearchResults();
+        updateScopeCountLabel();
+        updateActionButtonsState();
     } catch (err) {
         if (err.name === 'AbortError') {
             // Silence aborted fetch requests
@@ -192,7 +241,9 @@ async function triggerSearch() {
         }
         console.error(err);
         searchResults = [];
+        allResults = [];
         isSearchCapped = false;
+        totalMatched = 0;
         updateActionButtonsState();
         countLabel.textContent = 'Search failed';
         resultsContainer.innerHTML = `<div class="quick-find-empty">Error running search: ${err.message}</div>`;
@@ -366,12 +417,47 @@ function updateActionButtonsState() {
     const btnCopyPath = document.getElementById('quick-find-btn-copy-path');
     const btnCopyName = document.getElementById('quick-find-btn-copy-name');
     const btnDelete = document.getElementById('quick-find-btn-delete');
+    const btnPasteInside = document.getElementById('quick-find-btn-paste-inside');
     
     if (btnCopy) btnCopy.disabled = !hasResults;
     if (btnCut) btnCut.disabled = !hasResults;
     if (btnCopyPath) btnCopyPath.disabled = !hasResults;
     if (btnCopyName) btnCopyName.disabled = !hasResults;
     if (btnDelete) btnDelete.disabled = !hasResults;
+
+    // Paste Inside: only visible when scope is 'folder', enabled when folders exist + clipboard has items
+    if (btnPasteInside) {
+        const showPasteInside = scopeFilter === 'folder';
+        btnPasteInside.style.display = showPasteInside ? '' : 'none';
+        if (showPasteInside) {
+            const hasFolders = searchResults.some(item => item.is_dir);
+            const hasClipboard = state.clipboard && state.clipboard.op && state.clipboard.items && state.clipboard.items.length > 0;
+            btnPasteInside.disabled = !(hasResults && hasFolders && hasClipboard);
+        }
+    }
+}
+
+function updateScopeCountLabel() {
+    const countLabel = document.getElementById('quick-find-count');
+    const displayCount = searchResults.length;
+
+    if (totalMatched === 0) {
+        if (isSearchCapped) {
+            countLabel.textContent = `${totalMatched}+ matches (capped)`;
+        } else {
+            countLabel.textContent = `${totalMatched} match${totalMatched === 1 ? '' : 'es'}`;
+        }
+        return;
+    }
+
+    const totalLabel = isSearchCapped ? `${totalMatched}+` : `${totalMatched}`;
+    if (scopeFilter !== 'both') {
+        countLabel.textContent = `${displayCount} ${scopeFilter}${displayCount === 1 ? '' : 's'} (of ${totalLabel} total)`;
+    } else {
+        countLabel.textContent = isSearchCapped
+            ? `${totalMatched}+ matches (capped)`
+            : `${totalMatched} match${totalMatched === 1 ? '' : 'es'}`;
+    }
 }
 
 async function resolvePathsForAction() {
@@ -398,13 +484,99 @@ async function resolvePathsForAction() {
             throw new Error(`Failed to fetch all matching files: ${response.statusText}`);
         }
         const data = await response.json();
-        const fullEntries = data.entries || [];
+        let fullEntries = data.entries || [];
+        // Apply scope filter to capped results too
+        if (scopeFilter !== 'both') {
+            fullEntries = fullEntries.filter(item => scopeFilter === 'folder' ? item.is_dir : !item.is_dir);
+        }
         return fullEntries.map(item => {
             return tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + item.rel_path;
         });
     } finally {
         countLabel.textContent = prevText;
     }
+}
+
+async function onPasteInsideFoundClick() {
+    const tab = getActiveTab();
+    if (!tab || !searchResults || searchResults.length === 0) return;
+
+    const hasClipboard = state.clipboard && state.clipboard.op && state.clipboard.items && state.clipboard.items.length > 0;
+    if (!hasClipboard) {
+        alert('Nothing to paste - clipboard is empty.');
+        return;
+    }
+
+    // Collect only folder paths from the filtered results
+    const folderPaths = searchResults
+        .filter(item => item.is_dir)
+        .map(item => tab.currentPath + (tab.currentPath.endsWith('/') ? '' : '/') + item.rel_path);
+
+    if (folderPaths.length === 0) {
+        alert('No folders found in results to paste into.');
+        return;
+    }
+
+    const itemCount = state.clipboard.items.length;
+    const folderCount = folderPaths.length;
+    const opLabel = state.clipboard.op === 'cut' ? 'move' : 'copy';
+    const confirmMsg = `Are you sure you want to ${opLabel} ${itemCount} clipboard item(s) into ${folderCount} folder(s)?`;
+    if (!confirm(confirmMsg)) return;
+
+    const countLabel = document.getElementById('quick-find-count');
+    const prevText = countLabel.textContent;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < folderPaths.length; i++) {
+        const folderPath = folderPaths[i];
+        countLabel.textContent = `Pasting into folder ${i + 1} of ${folderCount}...`;
+        try {
+            let data = await executeFileOp('paste', [], folderPath);
+            if (data.status === 'conflict') {
+                const conflictNames = (data.conflicts || []).join(', ');
+                const mergeConfirm = confirm(`Folder(s) "${conflictNames}" already exist at "${folderPath}". Merge?`);
+                if (!mergeConfirm) {
+                    failCount++;
+                    continue;
+                }
+                data = await executeFileOp('paste', [], folderPath, null, true);
+            }
+            successCount++;
+        } catch (err) {
+            failCount++;
+            console.error(`Paste into ${folderPath} failed:`, err);
+        }
+    }
+
+    // If at least one paste succeeded with 'cut' op, clear clipboard and clean up UI
+    if (successCount > 0 && state.clipboard.op === 'cut') {
+        state.clipboard = { op: null, items: [] };
+        updateClipboardUI();
+    }
+
+    // Refresh UI for all panes
+    Object.keys(state.panes).forEach(paneId => {
+        const pane = state.panes[paneId];
+        const activeTab = pane.tabs.find(t => t.id === pane.activeTabId);
+        if (activeTab) {
+            renderFiles(paneId);
+            updateSelectionUI(paneId);
+            const infoEl = getPaneDom(paneId).querySelector('.status-info');
+            if (infoEl) {
+                infoEl.textContent = `${activeTab.loadedEntries.length} items`;
+            }
+        }
+    });
+
+    countLabel.textContent = prevText;
+    const infoEl = getPaneDom(state.activePane).querySelector('.status-info');
+    if (infoEl) {
+        infoEl.textContent = `Pasted into ${successCount} folder(s) (${failCount} failed)`;
+    }
+
+    closeQuickFind();
 }
 
 async function onCopyFoundClick() {

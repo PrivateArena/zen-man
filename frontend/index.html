@@ -574,6 +574,11 @@
                     <span class="quick-find-icon">🔍</span>
                     <input type="text" id="quick-find-input" placeholder="Type to find files..." autocomplete="off">
                 </div>
+                <div id="quick-find-scope-toggle" class="quick-find-scope-toggle" title="Limit search scope">
+                    <button class="btn-scope active" data-scope="both">Both</button>
+                    <button class="btn-scope" data-scope="folder">📁</button>
+                    <button class="btn-scope" data-scope="file">📄</button>
+                </div>
                 <label class="quick-find-recursive-toggle" title="Search all sub-folders recursively">
                     <input type="checkbox" id="quick-find-recursive">
                     <span>Recursive</span>
@@ -586,6 +591,9 @@
             <div id="quick-find-results" class="quick-find-results"></div>
             <div class="quick-find-footer">
                 <div class="quick-find-actions">
+                    <button id="quick-find-btn-paste-inside" class="btn-quick-find-action" disabled style="display:none">
+                        <span>📥</span> Paste Inside
+                    </button>
                     <button id="quick-find-btn-copy" class="btn-quick-find-action" disabled>
                         <span>📋</span> Copy Found
                     </button>
