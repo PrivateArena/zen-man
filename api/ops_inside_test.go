@@ -192,4 +192,3 @@ func TestParseURIListPercentDecoding(t *testing.T) {
 		t.Errorf("Expected %q, got %q", expected, got[0])
 	}
 }
-

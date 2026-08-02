@@ -14,15 +14,15 @@ import (
 
 // IndexConfig represents the search manager configuration
 type IndexConfig struct {
-	SchemaVersion  int         `json:"schema_version"`
-	Roots          []string    `json:"roots"`
-	Excludes       []string    `json:"excludes"`
-	AutoIndex      bool        `json:"auto_index"`
-	IndexOnStartup bool        `json:"index_on_startup"`
-	MaxDepth       int         `json:"max_depth"`
-	FollowSymlinks bool        `json:"follow_symlinks"`
-	WorkerCount    int         `json:"worker_count"`
-	IndexState     IndexState  `json:"index_state"`
+	SchemaVersion  int        `json:"schema_version"`
+	Roots          []string   `json:"roots"`
+	Excludes       []string   `json:"excludes"`
+	AutoIndex      bool       `json:"auto_index"`
+	IndexOnStartup bool       `json:"index_on_startup"`
+	MaxDepth       int        `json:"max_depth"`
+	FollowSymlinks bool       `json:"follow_symlinks"`
+	WorkerCount    int        `json:"worker_count"`
+	IndexState     IndexState `json:"index_state"`
 }
 
 type IndexState struct {
@@ -381,7 +381,7 @@ func ExecuteSearch(pq ParsedQuery, limit, offset int) ([]SearchEntry, int, error
 			IsDir:   isDirVal == 1,
 			Size:    sizeVal,
 			ModTime: mtimeVal,
-			Mode:    "", // Not critical for global search
+			Mode:    "",   // Not critical for global search
 			RelPath: path, // For global search, RelPath stores the full absolute path
 		})
 	}

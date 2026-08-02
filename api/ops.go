@@ -894,12 +894,12 @@ func handlePasteLink(w http.ResponseWriter, req OpRequest) {
 		// Collect entry info via Lstat (do NOT follow the link)
 		if fi, err := os.Lstat(dst); err == nil {
 			createdEntries = append(createdEntries, FileEntry{
-				Name:    fi.Name(),
-				IsDir:   fi.IsDir(),
+				Name:      fi.Name(),
+				IsDir:     fi.IsDir(),
 				IsSymlink: fi.Mode()&os.ModeSymlink != 0,
-				Size:    fi.Size(),
-				ModTime: fi.ModTime().Unix(),
-				Mode:    fi.Mode().String(),
+				Size:      fi.Size(),
+				ModTime:   fi.ModTime().Unix(),
+				Mode:      fi.Mode().String(),
 			})
 		}
 	}

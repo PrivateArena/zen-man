@@ -15,15 +15,15 @@ import (
 
 // FileEntry represents a single file or directory item returned to the client
 type FileEntry struct {
-	Name      string `json:"name"`
-	IsDir     bool   `json:"is_dir"`
-	IsSymlink bool   `json:"is_symlink,omitempty"`
-	Size      int64  `json:"size"`
-	ModTime   int64  `json:"mod_time"` // Unix timestamp
-	Mode      string `json:"mode"`
-	RelPath   string `json:"rel_path,omitempty"`
-	Depth     int    `json:"depth,omitempty"`
-	FilesCount int64 `json:"files_count,omitempty"`
+	Name       string `json:"name"`
+	IsDir      bool   `json:"is_dir"`
+	IsSymlink  bool   `json:"is_symlink,omitempty"`
+	Size       int64  `json:"size"`
+	ModTime    int64  `json:"mod_time"` // Unix timestamp
+	Mode       string `json:"mode"`
+	RelPath    string `json:"rel_path,omitempty"`
+	Depth      int    `json:"depth,omitempty"`
+	FilesCount int64  `json:"files_count,omitempty"`
 }
 
 // DirResponse represents the paginated directory contents payload

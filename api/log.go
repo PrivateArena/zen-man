@@ -83,7 +83,7 @@ type ActionRecord struct {
 
 const (
 	logHeaderFixed = 4 + 8 + 8 + 1 + 1 + 4 // magic+id+ts+action+status+recLen = 26 bytes
-	statusByteOff  = 4 + 8 + 8 + 1          // offset of status byte within a record = 21
+	statusByteOff  = 4 + 8 + 8 + 1         // offset of status byte within a record = 21
 )
 
 // ── ActionLog ────────────────────────────────────────────────────────────────
@@ -426,7 +426,7 @@ func encodeRecord(id int64, action ActionType, status StatusType, sources []stri
 	bodySize += 2 + len(name)
 
 	recLen := uint32(logHeaderFixed + bodySize) // excludes trailing CRC
-	totalSize := int(recLen) + 4               // +4 bytes for CRC
+	totalSize := int(recLen) + 4                // +4 bytes for CRC
 
 	buf := make([]byte, totalSize)
 	p := 0

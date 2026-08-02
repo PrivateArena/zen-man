@@ -46,9 +46,9 @@ func HandleActions(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodPost {
 		var req struct {
-			Action string       `json:"action"` // "create", "update", "delete", "reorder"
+			Action     string       `json:"action"` // "create", "update", "delete", "reorder"
 			ActionData CustomAction `json:"action_data"`
-			IDs    []string     `json:"ids"`    // for "reorder"
+			IDs        []string     `json:"ids"` // for "reorder"
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

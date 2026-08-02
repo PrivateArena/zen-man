@@ -339,4 +339,3 @@ func HandleStreamArchiveFile(w http.ResponseWriter, r *http.Request) {
 
 	http.Error(w, `{"error": "File not found inside archive"}`, http.StatusNotFound)
 }
-

@@ -139,7 +139,7 @@ func TestArchiveVFS_NestedArchive(t *testing.T) {
 
 func TestArchiveVFS_ZipSlip(t *testing.T) {
 	destDir := "/safe/path"
-	
+
 	// Test safe path
 	path, err := safeDestPath(destDir, "dir/file.txt")
 	if err != nil {

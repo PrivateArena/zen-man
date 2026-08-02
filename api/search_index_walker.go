@@ -161,7 +161,7 @@ func (im *IndexManager) runRebuild(ctx context.Context) error {
 			defer walkerWg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			
+
 			// Per-root timeout of 30 seconds to prevent offline mounts hanging
 			rootCtx, rootCancel := context.WithTimeout(ctx, 30*time.Second)
 			defer rootCancel()
